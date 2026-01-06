@@ -8,22 +8,15 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-    volumes:
-      - /app/apps/web/node_modules # 保护容器内的 node_modules 不被宿主机覆盖
-      - /app/apps/amis-app/node_modules
     depends_on:
-      - amis-app
+      - amis
 
-  # 子应用 (React 16 / amis)
-  amis-app:
+  # 子应用 (React 18 / amis)
+  amis:
     build:
       context: .
-      dockerfile: apps/amis-app/Dockerfile
+      dockerfile: apps/amis/Dockerfile
     ports:
       - "3001:3001"
     environment:
-      - NODE_ENV=development
-      - WDS_SOCKET_PORT=0
-    volumes:
-      - ./apps/amis-app:/app
-      - /app/node_modules # 保护容器内的 node_modules
+      - NODE_ENV=production
