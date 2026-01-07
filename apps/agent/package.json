@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "npx @langchain/langgraph-cli dev --port 8123 --no-browser"
+    "dev": "npx @langchain/langgraph-cli dev --port 8123 --no-browser",
+    "test:smoke": "tsx src/smoke-test.ts",
+    "quick-start": "tsx src/quick-start.ts"
   },
   "keywords": [],
   "author": "",
@@ -12,15 +14,16 @@
   "devDependencies": {
     "@types/html-to-text": "^9.0.4",
     "@types/node": "^22.9.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.6.3"
   },
   "dependencies": {
     "@copilotkit/sdk-js": "1.10.6",
+    "@langchain/anthropic": "^1.0.0",
     "@langchain/core": "^1.0.1",
     "@langchain/langgraph": "1.0.2",
     "@langchain/langgraph-checkpoint": "1.0.0",
     "@langchain/openai": "^1.1.3",
-    "@langchain/anthropic": "^1.0.0",
     "zod": "^3.23.8"
   }
 }

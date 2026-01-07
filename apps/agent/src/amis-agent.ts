@@ -30,6 +30,8 @@ import { Annotation } from "@langchain/langgraph";
 import { readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { getIndexer, initializeIndexer, type DocHit } from "./docs-index.js";
+import { debug } from "util";
 
 // ============================================================
 // 类型定义
@@ -48,6 +50,15 @@ export type Task = {
   result?: any;
   retryCount?: number;
   errorMessage?: string;
+  // 子任务列表（用于可复用 Planner 的二次拆解）
+  subtasks?: Task[];
+  // 文档命中信息（供上下文注入与证据链记录）
+  docHints?: Array<{
+    path: string;
+    anchors?: string[];
+    score?: number;
+    summary?: string;
+  }>;
 };
 
 /**
@@ -106,6 +117,21 @@ const AgentStateAnnotation = Annotation.Root({
 
   // 错误信息
   error: Annotation<string | null>,
+
+  // 为当前任务准备的上下文文档片段（由 docs/context 节点产出）
+  contextDocuments: Annotation<
+    Array<{
+      path: string;
+      summary?: string;
+      codeExamples?: string[];
+      anchors?: string[];
+      content?: string;
+      score?: number;
+    }>
+  >,
+
+  // 需要回到规划节点重新规划
+  needsReplan: Annotation<boolean>,
 });
 
 export type AmisAgentState = typeof AgentStateAnnotation.State;
@@ -115,85 +141,39 @@ export type AmisAgentState = typeof AgentStateAnnotation.State;
 // ============================================================
 
 /**
- * 关键词到文档路径的映射
- */
-const KEYWORD_MAPPING: Record<string, string[]> = {
-  输入框: ["docs/components/form/input-text.md"],
-  密码: ["docs/components/form/input-text.md"],
-  文本框: ["docs/components/form/input-text.md"],
-  下拉框: ["docs/components/form/select.md"],
-  选择器: ["docs/components/form/select.md"],
-  日期: [
-    "docs/components/form/input-date.md",
-    "docs/components/form/input-datetime.md",
-  ],
-  时间: [
-    "docs/components/form/input-time.md",
-    "docs/components/form/input-datetime.md",
-  ],
-  文件上传: ["docs/components/form/input-file.md"],
-  富文本: ["docs/components/form/input-rich-text.md"],
-  代码编辑: ["docs/components/form/editor.md"],
-  复选框: ["docs/components/form/checkbox.md"],
-  单选框: ["docs/components/form/radios.md"],
-  开关: ["docs/components/form/switch.md"],
-  表单: ["docs/components/form/index.md", "docs/components/form/formitem.md"],
-  表格: ["docs/components/table.md", "docs/components/crud.md"],
-  列表: ["docs/components/list.md", "docs/components/crud.md"],
-  弹窗: ["docs/components/dialog.md"],
-  抽屉: ["docs/components/drawer.md"],
-  按钮: ["docs/components/button.md"],
-  卡片: ["docs/components/card.md", "docs/components/cards.md"],
-  标签页: ["docs/components/tabs.md"],
-  向导: ["docs/components/wizard.md"],
-  图表: ["docs/components/chart.md"],
-  导航: ["docs/components/nav.md"],
-};
-
-/**
- * 文档检索工具
+ * 文档检索工具（使用全量索引）
  */
 const retrieveDocumentation = tool(
   async (args) => {
     const { query, taskType } = args;
 
     try {
-      // 1. 根据关键词映射到文档路径
-      const docPaths = mapKeywordToDocPaths(query, taskType);
+      const indexer = getIndexer(process.env.DOCS_ROOT);
 
-      if (docPaths.length === 0) {
+      // 调用索引搜索
+      const hits = indexer.search(query, 10);
+
+      if (hits.length === 0) {
         return {
           success: false,
           error: `未找到相关文档: ${query}`,
-          docs: [],
+          documents: [],
+          docPaths: [],
         };
       }
 
-      // 2. 读取所有相关文档内容
-      const documents = [];
-      for (const docPath of docPaths) {
-        if (existsSync(docPath)) {
-          const content = readFileSync(docPath, "utf-8");
-          const codeExamples = extractCodeExamples(content);
+      // 转换为返回格式
+      const documents = hits.map((hit) => ({
+        path: hit.path,
+        title: hit.title,
+        summary: hit.summary,
+        anchors: hit.anchors,
+        codeExamples: hit.codeExamples,
+        score: hit.score,
+      }));
 
-          documents.push({
-            path: docPath,
-            content,
-            codeExamples,
-            summary: generateSummary(content),
-          });
-        }
-      }
+      const docPaths = documents.map((d) => d.path);
 
-      if (documents.length === 0) {
-        return {
-          success: false,
-          error: `文档文件不存在: ${docPaths.join(", ")}`,
-          docs: [],
-        };
-      }
-
-      // 3. 返回找到的文档
       return {
         success: true,
         docPaths,
@@ -204,114 +184,40 @@ const retrieveDocumentation = tool(
       return {
         success: false,
         error: `文档检索失败: ${(error as Error).message}`,
-        docs: [],
+        documents: [],
+        docPaths: [],
       };
     }
   },
   {
     name: "retrieveDocumentation",
-    description: "根据查询和任务类型检索 amis 相关文档",
+    description: "根据查询和任务类型检索 amis 相关文档（使用全量索引）",
     schema: z.object({
-      query: z.string().describe("查询关键词，如'输入框'、'表单'等"),
-      taskType: z.string().describe("任务类型，如 form-item-input-text"),
+      query: z.string().describe("查询关键词或描述"),
+      taskType: z.string().describe("任务类型（可选）"),
     }),
   }
 );
-
-/**
- * 辅助函数：将关键词映射到文档路径
- */
-function mapKeywordToDocPaths(query: string, taskType: string): string[] {
-  // 直接匹配
-  if (KEYWORD_MAPPING[query]) {
-    return KEYWORD_MAPPING[query];
-  }
-
-  // 模糊匹配
-  for (const [keyword, paths] of Object.entries(KEYWORD_MAPPING)) {
-    if (query.includes(keyword) || keyword.includes(query)) {
-      return paths;
-    }
-  }
-
-  // 根据 taskType 匹配
-  if (taskType.includes("input-text")) {
-    return ["docs/components/form/input-text.md"];
-  }
-  if (taskType.includes("select")) {
-    return ["docs/components/form/select.md"];
-  }
-  if (taskType.includes("form")) {
-    return [
-      "docs/components/form/index.md",
-      "docs/components/form/formitem.md",
-    ];
-  }
-
-  return [];
-}
-
-/**
- * 辅助函数：提取 Markdown 中的代码示例
- */
-function extractCodeExamples(content: string): string[] {
-  const examples: string[] = [];
-
-  // 提取 ```schema 代码块
-  const schemaRegex = /```schema[\s\S]*?\n([\s\S]*?)\n```/g;
-  let match;
-  while ((match = schemaRegex.exec(content)) !== null) {
-    examples.push(match[1].trim());
-  }
-
-  // 提取普通 JSON 代码块
-  const jsonRegex = /```json[\s\S]*?\n([\s\S]*?)\n```/g;
-  while ((match = jsonRegex.exec(content)) !== null) {
-    try {
-      // 验证是否是有效 JSON
-      JSON.parse(match[1].trim());
-      examples.push(match[1].trim());
-    } catch {
-      // 忽略无效 JSON
-    }
-  }
-
-  return examples;
-}
-
-/**
- * 辅助函数：生成文档摘要
- */
-function generateSummary(content: string): string {
-  const lines = content.split("\n");
-
-  // 提取标题部分
-  const summary: string[] = [];
-  let inCodeBlock = false;
-
-  for (const line of lines) {
-    if (line.startsWith("```")) {
-      inCodeBlock = !inCodeBlock;
-      continue;
-    }
-
-    if (
-      !inCodeBlock &&
-      (line.startsWith("#") || line.startsWith("##") || line.trim() === "")
-    ) {
-      summary.push(line);
-      if (summary.length > 20) break;
-    }
-  }
-
-  return summary.join("\n").trim();
-}
 
 // ============================================================
 // 工具集合
 // ============================================================
 
 const tools = [retrieveDocumentation];
+
+/**
+ * 初始化 Agent（包括索引器构建）
+ */
+export async function initializeAgent(docsRoot?: string): Promise<void> {
+  console.log("🚀 [Agent] 初始化开始...");
+  try {
+    await initializeIndexer(docsRoot);
+    console.log("✅ [Agent] 初始化完成");
+  } catch (error) {
+    console.error("❌ [Agent] 初始化失败:", (error as Error).message);
+    throw error;
+  }
+}
 
 // ============================================================
 // 节点实现
@@ -343,31 +249,18 @@ async function planner_node(state: AmisAgentState, config: RunnableConfig) {
 
 请生成任务列表，每个任务包含：
 - id: 任务唯一标识（如 task-1, task-2）
-- description: 任务描述
-- type: 任务类型（如 form-item-input-text, form-item-select, form-assembly 等）
+- description: 任务描述（清晰说明要实现什么）
+- type: 任务类型（如 form-item-input-text, form-item-select, form-assembly, crud-table 等）
 - priority: 优先级（1=高，2=中，3=低）
-- docPaths: 相关文档路径数组（从以下路径选择）
+- docPaths: 留空数组（将在后续步骤由文档检索工具自动补全）
 - status: 状态（固定为 "pending"）
-
-可用文档路径：
-- docs/components/form/input-text.md - 文本输入框
-- docs/components/form/select.md - 下拉选择框
-- docs/components/form/input-date.md - 日期选择
-- docs/components/form/input-file.md - 文件上传
-- docs/components/form/checkbox.md - 复选框
-- docs/components/form/radios.md - 单选框
-- docs/components/form/switch.md - 开关按钮
-- docs/components/button.md - 按钮
-- docs/components/form/index.md - 表单容器
-- docs/components/table.md - 表格
-- docs/components/dialog.md - 弹窗
-- docs/components/card.md - 卡片
 
 要求：
 1. 只返回 JSON 数组，不要有其他内容
 2. 按照执行顺序排列任务
-3. 最后一个任务应该是"组装"类型（如 form-assembly）
-4. 确保文档路径存在且相关
+3. 最后一个任务应该是"组装"类型（如 form-assembly, page-assembly）以合成所有组件
+4. 任务描述要足够具体，便于后续工具进行文档检索
+5. 不要尝试预测或列举具体的文档路径，这会在后续步骤自动处理
 
 请生成任务列表（JSON 数组格式）：`;
 
@@ -434,9 +327,212 @@ async function planner_node(state: AmisAgentState, config: RunnableConfig) {
     taskResults: [],
     executionLog: [...(state.executionLog || []), event],
     userRequirement: userRequirement as string,
+    contextDocuments: [],
+    needsReplan: false,
   };
 }
 
+/**
+ * 1.5 文档关联节点 (Docs Associate Node)
+ * 职责：判断任务是否与 amis 构建相关；若相关则检索并关联文档地址到任务
+ */
+async function docs_associate_node(
+  state: AmisAgentState,
+  config: RunnableConfig
+) {
+  const currentIndex = state.currentTaskIndex || 0;
+  const tasks = state.tasks || [];
+
+  if (currentIndex >= tasks.length) {
+    return {};
+  }
+
+  const task = tasks[currentIndex];
+
+  const related = isAmisRelated(task);
+  const startEvent: ExecutionEvent = {
+    type: "doc_retrieval",
+    timestamp: new Date().toISOString(),
+    taskId: task.id,
+    message: related
+      ? `开始为任务检索文档：${task.description}`
+      : `任务与 amis 无明显关联，跳过文档检索`,
+  };
+
+  let updates: Partial<Task> = {};
+
+  if (related) {
+    try {
+      const res: any = await retrieveDocumentation.invoke({
+        query: task.description,
+        taskType: task.type || "",
+      });
+
+      if (
+        res &&
+        res.success &&
+        Array.isArray(res.documents) &&
+        res.documents.length
+      ) {
+        const docHints = res.documents.map((d: any) => ({
+          path: d.path,
+          anchors: [],
+          score: d.score,
+          summary: d.summary,
+        }));
+        updates = {
+          docPaths: res.docPaths || docHints.map((h: any) => h.path),
+          docHints,
+        };
+
+        const foundEvent: ExecutionEvent = {
+          type: "docs_found",
+          timestamp: new Date().toISOString(),
+          taskId: task.id,
+          message: `找到 ${docHints.length} 篇相关文档`,
+          data: { docPaths: updates.docPaths },
+        };
+
+        tasks[currentIndex] = { ...task, ...updates } as Task;
+        return {
+          tasks,
+          executionLog: [...(state.executionLog || []), startEvent, foundEvent],
+        };
+      }
+    } catch (e) {
+      const errEvent: ExecutionEvent = {
+        type: "error",
+        timestamp: new Date().toISOString(),
+        taskId: task.id,
+        message: `文档检索异常：${(e as Error).message}`,
+      };
+      return {
+        executionLog: [...(state.executionLog || []), startEvent, errEvent],
+      };
+    }
+  }
+
+  // 无关联或未命中文档
+  tasks[currentIndex] = { ...task, ...updates } as Task;
+  return { tasks, executionLog: [...(state.executionLog || []), startEvent] };
+}
+
+/**
+ * 2.5 上下文注入节点 (Context Node)
+ * 职责：将与任务相关的文档内容（摘要/示例）准备好注入到执行提示词
+ */
+async function context_node(state: AmisAgentState, config: RunnableConfig) {
+  const currentIndex = state.currentTaskIndex || 0;
+  const tasks = state.tasks || [];
+  if (currentIndex >= tasks.length) {
+    return { contextDocuments: [] };
+  }
+
+  const task = tasks[currentIndex];
+  const hints = task.docHints || [];
+  const docs: Array<{
+    path: string;
+    summary?: string;
+    codeExamples?: string[];
+    anchors?: string[];
+    content?: string;
+    score?: number;
+  }> = [];
+
+  for (const h of hints.slice(0, 5)) {
+    try {
+      if (existsSync(h.path)) {
+        const content = readFileSync(h.path, "utf-8");
+        docs.push({
+          path: h.path,
+          summary: h.summary || extractSummaryFromContent(content),
+          codeExamples: extractCodeExamplesFromContent(content),
+          anchors: h.anchors,
+          content,
+          score: h.score,
+        });
+      }
+    } catch {
+      // 忽略单个文件的读取错误
+    }
+  }
+
+  const event: ExecutionEvent = {
+    type: "generating",
+    timestamp: new Date().toISOString(),
+    taskId: task.id,
+    message: docs.length
+      ? `已准备 ${docs.length} 个上下文文档片段`
+      : "未找到可用上下文文档，继续执行",
+  };
+
+  return {
+    contextDocuments: docs,
+    executionLog: [...(state.executionLog || []), event],
+  };
+}
+
+// 简单判断任务是否与 amis 构建相关
+function isAmisRelated(task: Task): boolean {
+  const text = `${task.type || ""} ${task.description || ""}`;
+  const keys = [
+    "amis",
+    "form",
+    "input",
+    "select",
+    "table",
+    "crud",
+    "page",
+    "dialog",
+    "drawer",
+    "tabs",
+    "wizard",
+    "card",
+    "button",
+    "chart",
+  ];
+  return keys.some((k) => text.toLowerCase().includes(k));
+}
+
+/**
+ * 提取 Markdown 中的代码示例（上下文注入时使用）
+ */
+function extractCodeExamplesFromContent(content: string): string[] {
+  const examples: string[] = [];
+
+  // 提取 ```schema``` 或 ```json``` 块
+  const codeRegex = /```(?:schema|json)\n([\s\S]*?)\n```/g;
+  let match;
+
+  while ((match = codeRegex.exec(content)) !== null) {
+    const code = match[1].trim();
+    if (code) {
+      examples.push(code);
+    }
+  }
+
+  return examples;
+}
+
+/**
+ * 生成文档摘要（上下文注入时使用）
+ */
+function extractSummaryFromContent(content: string): string {
+  const lines = content.split("\n");
+  const summary: string[] = [];
+
+  for (const line of lines) {
+    // 跳过代码块
+    if (line.startsWith("```")) continue;
+    // 收集标题和前 10 行文本
+    if (line.startsWith("#") || line.trim() !== "") {
+      summary.push(line);
+    }
+    if (summary.length >= 10) break;
+  }
+
+  return summary.join("\n").trim().slice(0, 200);
+}
 /**
  * 2. 任务执行节点 (Executor Node)
  * 职责：执行单个子任务，生成对应的 amis JSON 配置
@@ -494,6 +590,22 @@ ${JSON.stringify(state.taskResults, null, 2)}
     : ""
 }
 
+${
+  state.contextDocuments && state.contextDocuments.length > 0
+    ? `以下是与本任务相关的文档摘录（供参考）：\n${state.contextDocuments
+        .slice(0, 3)
+        .map(
+          (d, i) =>
+            `【文档${i + 1}】${d.path}\n摘要：${d.summary || ""}\n示例：\n${(
+              d.codeExamples || []
+            )
+              .slice(0, 1)
+              .join("\n")}`
+        )
+        .join("\n\n")}\n请遵循文档规范进行配置。`
+    : ""
+}
+
 要求：
 1. 只返回 JSON 对象，不要有其他内容
 2. 必须包含 type、name 等必需属性
@@ -538,7 +650,8 @@ ${JSON.stringify(state.taskResults, null, 2)}
       console.log(`✅ [Executor] 成功生成配置`);
       console.log(JSON.stringify(result, null, 2));
     } else if (typeof content === "object") {
-      result = content as Record<string, unknown>;
+      console.log(`✅ [Executor] 获取配置成功`, content);
+      result = content;
     }
 
     // 更新任务状态
@@ -571,6 +684,8 @@ ${JSON.stringify(state.taskResults, null, 2)}
     currentTaskIndex: currentIndex + 1,
     tasks,
     executionLog: [...(state.executionLog || []), event],
+    // 本轮用过的上下文清空，交给下个任务的 context 节点重新准备
+    contextDocuments: [],
   };
 }
 
@@ -686,15 +801,33 @@ function shouldContinue(state: AmisAgentState): string {
   const currentIndex = state.currentTaskIndex || 0;
   const totalTasks = state.tasks?.length || 0;
 
+  // 若需要回到规划阶段（例如需求变化或失败后重规划）
+  if (state.needsReplan) return "planner";
+
+  // 如果上一个已执行任务失败，则回到规划节点复盘/重拆
+  const lastIndex = currentIndex - 1;
+  if (
+    lastIndex >= 0 &&
+    state.tasks &&
+    state.tasks[lastIndex] &&
+    state.tasks[lastIndex].status === "failed"
+  ) {
+    return "planner";
+  }
+
   // 检查最后一条消息是否有工具调用
   const lastMessage = state.messages[state.messages.length - 1] as AIMessage;
   if (lastMessage?.tool_calls?.length) {
-    // 检查是否是 CopilotKit action（不需要路由到 tool_node）
-    const actions = state.copilotkit?.actions;
-    const toolCallName = lastMessage.tool_calls![0].name;
+    const toolCall = lastMessage.tool_calls[0];
+    // 验证工具调用对象有必需的 id 和 name 字段
+    if (toolCall?.id && toolCall?.name) {
+      // 检查是否是 CopilotKit action（不需要路由到 tool_node）
+      const actions = state.copilotkit?.actions;
+      const toolCallName = toolCall.name;
 
-    if (!actions || actions.every((action) => action.name !== toolCallName)) {
-      return "tool_node";
+      if (!actions || actions.every((action) => action.name !== toolCallName)) {
+        return "tool_node";
+      }
     }
   }
 
@@ -708,8 +841,8 @@ function shouldContinue(state: AmisAgentState): string {
     return "composer";
   }
 
-  // 继续执行下一个任务
-  return "executor";
+  // 下一个步骤：为当前任务做文档关联与上下文准备
+  return "docs_associate";
 }
 
 /**
@@ -734,17 +867,25 @@ function shouldRequestFeedback(state: AmisAgentState): boolean {
 const workflow = new StateGraph(AgentStateAnnotation)
   // 添加节点
   .addNode("planner", planner_node)
+  // 文档关联节点：为当前任务检索与绑定文档地址
+  .addNode("docs_associate", docs_associate_node)
+  // 上下文注入节点：根据已关联文档收集摘要/示例，准备给执行器
+  .addNode("context", context_node)
   .addNode("executor", executor_node)
   .addNode("tool_node", new ToolNode(tools))
   .addNode("composer", composer_node)
 
   // 添加边
   .addEdge(START, "planner")
-  .addEdge("planner", "executor")
+  .addEdge("planner", "docs_associate")
+  .addEdge("docs_associate", "context")
+  .addEdge("context", "executor")
   .addEdge("tool_node", "executor")
 
   // 条件边：判断是否继续执行
   .addConditionalEdges("executor", shouldContinue, {
+    planner: "planner",
+    docs_associate: "docs_associate",
     executor: "executor",
     tool_node: "tool_node",
     composer: "composer",

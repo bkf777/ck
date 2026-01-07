@@ -89,13 +89,17 @@ function shouldContinue({ messages, copilotkit }: AgentState) {
 
   // 7.2 If the LLM makes a tool call, then we route to the "tools" node
   if (lastMessage.tool_calls?.length) {
-    // Actions are the frontend tools coming from CopilotKit
-    const actions = copilotkit?.actions;
-    const toolCallName = lastMessage.tool_calls![0].name;
+    const toolCall = lastMessage.tool_calls[0];
+    // 验证工具调用对象有必需的 id 和 name 字段
+    if (toolCall?.id && toolCall?.name) {
+      // Actions are the frontend tools coming from CopilotKit
+      const actions = copilotkit?.actions;
+      const toolCallName = toolCall.name;
 
-    // 7.3 Only route to the tool node if the tool call is not a CopilotKit action
-    if (!actions || actions.every((action) => action.name !== toolCallName)) {
-      return "tool_node";
+      // 7.3 Only route to the tool node if the tool call is not a CopilotKit action
+      if (!actions || actions.every((action) => action.name !== toolCallName)) {
+        return "tool_node";
+      }
     }
   }
 
