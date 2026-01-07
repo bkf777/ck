@@ -6,6 +6,7 @@ import {
 import { LangGraphAgent } from "@copilotkit/runtime/langgraph";
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import AmisEditorPage from "@/app/amis-editor/page";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
@@ -19,6 +20,12 @@ const anthropicAdapter = new AnthropicAdapter({
 
 const runtime = new CopilotRuntime({
   agents: {
+    AmisEditorPageAgent: new LangGraphAgent({
+      deploymentUrl:
+        process.env.LANGGRAPH_DEPLOYMENT_URL || "http://localhost:8123",
+      graphId: "amisAgent",
+      langsmithApiKey: process.env.LANGSMITH_API_KEY || "",
+    }),
     starterAgent: new LangGraphAgent({
       deploymentUrl:
         process.env.LANGGRAPH_DEPLOYMENT_URL || "http://localhost:8123",

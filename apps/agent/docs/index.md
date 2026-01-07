@@ -8,222 +8,144 @@ icon:
 order: 8
 ---
 
-## 什么是 amis
+## amis 简介
 
-amis 是一个低代码前端框架，它使用 JSON 配置来生成页面，可以减少页面开发工作量，极大提升效率。
+amis 是一个低代码前端框架，使用 JSON 配置来生成页面。它提供了 120+ 内置组件，包括表单、表格、图表、富文本编辑器等，可以快速构建中后台管理界面。
 
-## 为什么要做 amis？
+## AI 快速索引
 
-在经历了十几年的发展后，前端开发变得越来越复杂，门槛也越来越高，要使用当下流行的 UI 组件库，你必须懂 `npm`、`webpack`、`react/vue`，必须熟悉 `ES6` 语法，最好还了解状态管理，比如 `Redux`，如果没接触过函数式编程，光入门都很费劲，而入门之后会发现它还有巨大的 [生态](https://github.com/markerikson/redux-ecosystem-links)，相关的库有 **2347** 个，很多功能相似，挑选成本高。
+本文档旨在帮助 AI 助手根据用户需求快速定位到具体的 amis 文档。
 
-然而前端技术的发展不会停滞，等学完这些后可能会发现大家都用 `Hooks` 了、某个打包工具取代 `Webpack` 了……
+### 需求类型 → 文档映射
 
-而有时候其实只想做个普通的增删改查界面，用于信息管理，类似下面这种：
+#### 页面结构类
 
-```schema
-{
-  "title": "浏览器内核对 CSS 的支持情况",
-  "remark": "嘿，不保证数据准确性",
-  "type": "page",
-  "body": {
-    "type": "crud",
-    "draggable": true,
-    "syncLocation": false,
-    "api": "/api/mock2/sample",
-    "keepItemSelectionOnPageChange": true,
-    "autoGenerateFilter": true,
-    "bulkActions": [
-      {
-        "type": "button",
-        "label": "批量删除",
-        "actionType": "ajax",
-        "api": "delete:/api/mock2/sample/${ids|raw}",
-        "confirmText": "确定要批量删除?"
-      },
-      {
-        "type": "button",
-        "label": "批量修改",
-        "actionType": "dialog",
-        "dialog": {
-          "title": "批量编辑",
-          "name": "sample-bulk-edit",
-          "body": {
-            "type": "form",
-            "api": "/api/mock2/sample/bulkUpdate2",
-            "body": [
-              {
-                "type": "hidden",
-                "name": "ids"
-              },
-              {
-                "type": "input-text",
-                "name": "engine",
-                "label": "Engine"
-              }
-            ]
-          }
-        }
-      }
-    ],
-    "quickSaveApi": "/api/mock2/sample/bulkUpdate",
-    "quickSaveItemApi": "/api/mock2/sample/$id",
-    "headerToolbar": [
-      "bulkActions",
-      {
-        "type": "button",
-        "label": "重置测试数据",
-        "actionType": "ajax",
-        "size": "sm",
-        "api": "/api/mock2/sample/reset"
-      },
-      "export-excel",
-      {
-        "type": "tpl",
-        "tpl": "一共有 ${count} 行数据。",
-        "className": "v-middle"
-      },
-      {
-        "type": "columns-toggler",
-        "align": "right",
-        "draggable": true
-      },
-      {
-        "type": "drag-toggler",
-        "align": "right"
-      }
-    ],
-    "footerToolbar": ["statistics", "switch-per-page", "pagination"],
-    "columns": [
-      {
-        "name": "id",
-        "label": "ID",
-        "width": 20,
-        "sortable": true,
-        "type": "text",
-        "searchable": {
-          "type": "input-text",
-          "name": "id",
-          "label": "主键",
-          "placeholder": "输入id"
-        }
-      },
-      {
-        "name": "browser",
-        "label": "Browser",
-        "searchable": {
-          "type": "select",
-          "name": "browser",
-          "label": "浏览器",
-          "placeholder": "选择浏览器",
-          "options": [
-            {
-              "label": "Internet Explorer ",
-              "value": "ie"
-            },
-            {
-              "label": "AOL browser",
-              "value": "aol"
-            },
-            {
-              "label": "Firefox",
-              "value": "firefox"
-            }
-          ]
-        }
-      },
-      {
-        "name": "platform",
-        "label": "平台",
-        "popOver": {
-          "trigger": "hover",
-          "body": {
-            "type": "tpl",
-            "tpl": "就是为了演示有个叫 popOver 的功能"
-          }
-        },
-        "sortable": true,
-        "type": "text"
-      },
-      {
-        "name": "grade",
-        "label": "CSS 等级",
-        "type": "select",
-        "options": ["A", "B", "C", "D", "X"]
-      },
-      {
-        "type": "operation",
-        "label": "操作",
-        "width": 100,
-        "buttons": [
-          {
-            "type": "button",
-            "actionType": "ajax",
-            "label": "删除",
-            "confirmText": "您确认要删除?",
-            "api": "delete:/api/mock2/sample/$id"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+- 创建页面 → `components/page.md`
+- 表格/列表页面 → `components/crud.md`, `components/table.md`
+- 表单页面 → `components/form/`
+- 弹窗/抽屉 → `components/dialog.md`, `components/drawer.md`
+- 多标签页 → `components/tabs.md`
+- 向导流程 → `components/wizard.md`
+- 卡片展示 → `components/card.md`, `components/cards.md`
+- 导航菜单 → `components/nav.md`
 
-这个界面虽然用 `Bootstrap` 及各种前端 UI 库也能做出个大概，但仔细观察会发现它有大量细节功能，比如：
+#### 数据交互类
 
-- 可以对数据做筛选
-- 有按钮可以刷新数据
-- 编辑单行数据
-- 批量修改和删除
-- 按某列排序
-- 可以隐藏某些列
-- 可以调整列顺序
-- 自动生成顶部查询区域
-- 可调整列宽度
-- 开启整页内容拖拽排序
-- 表格有分页（页数还能同步到地址栏，不过这个例子中关了）
-- 有数据汇总
-- 支持导出 Excel
-- 「渲染引擎」那列的表头有提示文字
-- 鼠标移动到「平台」那列的内容时还有放大镜符号，可以展开查看更多
-- 如果往下拖动还有首行冻结来方便查看表头（因为文档页面的限制，这个功能在这里看不出来）
+- 数据获取和提交 → `concepts/schema.md`
+- 数据映射和转换 → `concepts/data-mapping.md`
+- 表达式计算 → `concepts/expression.md`
+- 数据联动 → `concepts/linkage.md`
+- 数据范围和链 → `concepts/datascope-and-datachain.md`
+- API 接口定义 → `types/api.md`
 
-全部实现这些需要大量的代码。
+#### 交互行为类
 
-但可以看到，用 amis 只需要 **157** 行 JSON 配置（其中 47 行只有一个括号），你不需要了解 `React/Vue`、`Webpack`，甚至不需要很了解 `JavaScript`，即便没学过 amis 也能猜到大部分配置的作用，只需要简单配置就能完成所有页面开发。
+- 按钮和操作 → `concepts/action.md`, `components/button.md`
+- 事件处理 → `concepts/event-action.md`
+- 表单验证 → `components/form/` (各表单项的验证配置)
+- 批量操作 → `components/crud.md` (bulkActions 配置)
+- 快速编辑 → `components/crud.md` (quickSave 配置)
 
-这正是建立 amis 的初衷，我们认为：**对于大部分常用页面，应该使用最简单的方法来实现**，甚至不需要学习前端框架和工具。
+#### 表单组件类
 
-## 用 JSON 写页面有什么好处
+- 文本输入 → `components/form/input-text.md`
+- 数字输入 → `components/form/input-number.md`
+- 下拉选择 → `components/form/select.md`
+- 日期选择 → `components/form/input-date.md`, `components/form/input-datetime.md`
+- 文件上传 → `components/form/input-file.md`
+- 富文本编辑 → `components/form/input-rich-text.md`
+- 代码编辑 → `components/form/input-code.md`
+- 复选框/单选框 → `components/form/checkbox.md`, `components/form/radios.md`
+- 开关按钮 → `components/form/switch.md`
 
-为了实现用最简单方式来生成大部分页面，amis 的解决方案是基于 [JSON](https://baike.baidu.com/item/JSON) 来配置，它的独特好处是：
+#### 样式和布局类
 
-- **不需要懂前端**：在百度内部，大部分 amis 用户之前从来没写过前端页面，也不会 `JavaScript`，却能做出专业且复杂的后台界面，这是所有其他前端 UI 库都无法做到的；
-- **不受前端技术更新的影响**：百度内部最老的 amis 页面是 6 年多前创建的，至今还在使用，而当年的 `Angular/Vue/React` 版本现在都废弃了，当年流行的 `Gulp` 也被 `Webpack` 取代了，如果这些页面不是用 amis，现在的维护成本会很高；
-- **享受 amis 的不断升级**：amis 一直在提升细节交互体验，比如表格首行冻结、下拉框大数据下不卡顿等，之前的 JSON 配置完全不需要修改；
-- 可以 **完全** 使用 [可视化页面编辑器](https://aisuda.github.io/amis-editor-demo/) 来制作页面：一般前端可视化编辑器只能用来做静态原型，而 amis 可视化编辑器做出的页面是可以直接上线的。
+- 自定义样式 → `style/index.md`
+- CSS 变量 → `style/css-vars.md`
+- 响应式设计 → `style/responsive-design.md`
+- 状态样式 → `style/state.md`
+- 布局容器 → `components/flex.md`, `components/grid.md`, `components/hbox.md`, `components/container.md`
+- 分隔线 → `components/divider.md`
 
-## amis 的其它亮点
+#### 数据展示类
 
-- **提供完整的界面解决方案**：其它 UI 框架必须使用 JavaScript 来组装业务逻辑，而 amis 只需 JSON 配置就能完成完整功能开发，包括数据获取、表单提交及验证等功能，做出来的页面不需要经过二次开发就能直接上线；
-- **大量内置组件（120+），一站式解决**：其它 UI 框架大部分都只有最通用的组件，如果遇到一些稍微不常用的组件就得自己找第三方，而这些第三方组件往往在展现和交互上不一致，整合起来效果不好，而 amis 则内置大量组件，包括了富文本编辑器、代码编辑器、diff、条件组合、实时日志等业务组件，绝大部分中后台页面开发只需要了解 amis 就足够了；
-- **支持扩展**：除了低代码模式，还可以通过 [自定义组件](./extend/internal) 来扩充组件，实际上 amis 可以当成普通 UI 库来使用，实现 90% 低代码，10% 代码开发的混合模式，既提升了效率，又不失灵活性；
-- **容器支持无限级嵌套**：可以通过嵌套来满足各种布局及展现需求；
-- **经历了长时间的实战考验**：amis 在百度内部得到了广泛使用，**在 6 年多的时间里创建了 5 万页面**，从内容审核到机器管理，从数据分析到模型训练，amis 满足了各种各样的页面需求，最复杂的页面有超过 1 万行 JSON 配置。
+- 文本展示 → `components/tpl.md`
+- 图片展示 → `components/image.md`, `components/images.md`
+- 视频播放 → `components/video.md`
+- 图表展示 → `components/chart.md`
+- 代码高亮 → `components/code.md`
+- JSON 展示 → `components/json.md`
+- Markdown → `components/markdown.md`
+- 进度条 → `components/progress.md`
+- 状态标签 → `components/status.md`, `components/badge.md`
 
-## amis 不适合做什么？
+#### 提示和反馈类
 
-使用 JSON 有优点但也有明显缺点，在以下场合并不适合 amis：
+- 提示框 → `components/alert.md`
+- 消息提示 → `components/toast.md`
+- 弹出提示 → `components/popover.md`
+- 抽屉 → `components/drawer.md`
+- 对话框 → `components/dialog.md`
 
-- **大量定制 UI**：JSON 配置使得 amis 更适合做有大量常见 UI 组件的页面，但对于面向普通客户（toC）的页面，往往追求个性化的视觉效果，这种情况下用 amis 就不合适，实际上绝大部分前端 UI 组件库也都不适合，只能定制开发。
-- **极为复杂或特殊的交互**：
-  - 有些复杂的前端功能，比如 可视化编辑器，其中有大量定制的拖拽操作，这种需要依赖原生 DOM 实现的功能无法使用 amis。
-  - 但对于某些交互固定的领域，比如图连线，amis 后续会有专门的组件来实现。
+#### 扩展和进阶
 
-## 阅读建议
+- 自定义组件 → `extend/internal.md`, `extend/custom-react.md`
+- 自定义 SDK → `extend/custom-sdk.md`
+- 移动端适配 → `extend/mobile.md`
+- 国际化 → `extend/i18n.md`
+- 可视化编辑器 → `extend/editor.md`
+- 插件扩展 → `extend/addon.md`
+- 调试工具 → `extend/debug.md`
+- 追踪统计 → `extend/tracker.md`
+- 贡献指南 → `extend/contribute.md`
 
-- 如果你是第一次接触 amis，那么请 **务必认真阅读完概念部分**，它会让你对 amis 有个整体的认识
-- 如果你已经掌握 amis 基本概念，且有一定的开发经验，需要参考 amis 组件相关文档的同学，那么请移步 [组件文档](../components/page)
+#### 常见问题
+
+- 快速入门 → `start/getting-started.md`
+- 常见问题 → `start/faq.md`
+- 更新日志 → `start/changelog.md`
+
+### 关键词搜索建议
+
+当用户提到以下关键词时，建议优先阅读对应文档：
+
+- **"表单"** → `components/form/` 目录
+- **"表格/列表/CRUD"** → `components/crud.md`, `components/table.md`
+- **"API/接口/数据请求"** → `concepts/schema.md`, `types/api.md`
+- **"验证/校验"** → `components/form/` 各表单项文档
+- **"联动/关联/依赖"** → `concepts/linkage.md`
+- **"模板/格式化"** → `concepts/template.md`
+- **"样式/主题/颜色"** → `style/index.md`, `style/css-vars.md`
+- **"响应式/手机/移动端"** → `style/responsive-design.md`, `extend/mobile.md`
+- **"自定义组件/扩展"** → `extend/internal.md`, `extend/custom-react.md`
+- **"事件/动作"** → `concepts/action.md`, `concepts/event-action.md`
+- **"表达式/计算"** → `concepts/expression.md`
+- **"数据映射/转换"** → `concepts/data-mapping.md`
+
+### 文档读取策略
+
+1. **优先级顺序**：概念文档 → 组件文档 → 扩展文档
+
+   - 先理解 amis 的核心概念（schema、data-mapping、expression）
+   - 再查找具体组件的使用方法
+   - 最后查看扩展和高级功能
+
+2. **组合使用**：
+
+   - 先了解 `concepts/schema.md` 的基础结构
+   - 再查具体组件的配置选项
+   - 参考组件文档中的示例代码
+
+3. **跨章节关联**：
+
+   - 表单组件文档会引用 `concepts/form.md` 中的通用配置
+   - 事件处理会引用 `concepts/action.md` 和 `concepts/event-action.md`
+   - 数据相关功能会引用 `concepts/data-mapping.md` 和 `concepts/expression.md`
+
+4. **类型定义参考**：
+   - 了解完整的数据结构和接口定义，查看 `types/` 目录
+   - 组件的 props 和 schema 定义参考 `types/definitions.md`
+   - 类名相关的类型定义参考 `types/classname.md`
 
 ## 让我们马上开始吧
 

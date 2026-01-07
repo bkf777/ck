@@ -1,9 +1,12 @@
 {
   "node_version": "20",
   "dockerfile_lines": [],
-  "dependencies": ["."],
+  "dependencies": [
+    "."
+  ],
   "graphs": {
-    "starterAgent": "./src/agent.ts:graph"
+    "starterAgent": "./src/agent.ts:graph",
+    "amisAgent": "./src/amis-agent.ts:graph"
   },
   "env": ".env"
 }
