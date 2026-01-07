@@ -1,21 +1,37 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Script from "next/script";
 import { CopilotSidebar } from "@copilotkit/react-ui";
 import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
 
 // 动态导入 qiankun 避免 SSR 报错
 let loadMicroApp: any;
 
+// 声明全局类型
+declare global {
+  interface Window {
+    amisRequire?: any;
+    amisScoped?: any;
+  }
+}
+
+type AmisInstance = {
+  updateSchema: (schema: Record<string, unknown>) => void;
+  updateProps: (props: Record<string, unknown>) => void;
+};
+
 export default function AmisEditorPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const microAppRef = useRef<any>(null);
   const [isClient, setIsClient] = useState(false);
-  const schemaRef = useRef({
+  const [sdkReady, setSdkReady] = useState(false);
+  const [schema, setSchema] = useState<Record<string, unknown>>({
     type: "page",
     title: "Hello Amis",
     body: "This is a qiankun sub app (React 16)",
   });
+  const ref = useRef<AmisInstance | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -24,7 +40,7 @@ export default function AmisEditorPage() {
   // 让 Copilot 能够读取当前的 schema
   useCopilotReadable({
     description: "当前 amis 页面的配置 (schema)",
-    value: schemaRef.current,
+    value: schema,
   });
 
   // 让 Copilot 能够更新 schema
@@ -41,40 +57,58 @@ export default function AmisEditorPage() {
     ],
     handler: ({ schema }) => {
       console.log("Updating schema via Copilot:", schema);
-      schemaRef.current = schema as Record<string, unknown>;
-      if (microAppRef.current && microAppRef.current.update) {
-        microAppRef.current.update({ schema });
-      }
+      updateSchema(schema as Record<string, unknown>);
+      setSchema(schema as Record<string, unknown>);
     },
   });
 
-  useEffect(() => {
-    if (isClient && containerRef.current && !microAppRef.current) {
-      // 只有在客户端才导入 qiankun
-      import("qiankun").then((m) => {
-        loadMicroApp = m.loadMicroApp;
-        microAppRef.current = loadMicroApp({
-          name: "amis-app",
-          entry: "//localhost:3001",
-          container: containerRef.current,
-          props: {
-            initialSchema: schemaRef.current,
-            onSchemaChange: (value: Record<string, unknown>) => {
-              console.log("Schema changed in sub-app:", value);
-              schemaRef.current = value;
-            },
-          },
-        });
-      });
-    }
+  // useEffect(() => {
+  //   if (isClient && containerRef.current && !microAppRef.current) {
+  //     // 只有在客户端才导入 qiankun
+  //     import("qiankun").then((m) => {
+  //       loadMicroApp = m.loadMicroApp;
+  //       microAppRef.current = loadMicroApp({
+  //         name: "amis-app",
+  //         entry: "//localhost:3001",
+  //         container: containerRef.current,
+  //         props: {
+  //           initialSchema: schemaRef.current,
+  //           onSchemaChange: (value: Record<string, unknown>) => {
+  //             console.log("Schema changed in sub-app:", value);
+  //             schemaRef.current = value;
+  //           },
+  //         },
+  //       });
+  //     });
+  //   }
 
-    return () => {
-      if (microAppRef.current) {
-        microAppRef.current.unmount();
-        microAppRef.current = null;
-      }
-    };
-  }, [isClient]);
+  //   return () => {
+  //     if (microAppRef.current) {
+  //       microAppRef.current.unmount();
+  //       microAppRef.current = null;
+  //     }
+  //   };
+  // }, [isClient]);
+
+  // 初始化 amis
+  useEffect(() => {
+    if (sdkReady && isClient && containerRef.current && !window.amisScoped) {
+      const amis = window.amisRequire("amis/embed");
+      ref.current = amis.embed(containerRef.current, schema);
+    }
+  }, [sdkReady, isClient]);
+
+  // 当 schema 更新时重新渲染
+  const updateSchema = (newSchema: Record<string, unknown>) => {
+    console.log(
+      "即将更新 ",
+      newSchema,
+      !!(ref.current && ref.current.updateProps)
+    );
+    if (ref.current && !!ref.current.updateProps) {
+      ref.current.updateSchema(newSchema);
+    }
+  };
 
   if (!isClient) {
     return (
@@ -85,23 +119,43 @@ export default function AmisEditorPage() {
   }
 
   return (
-    <main className="h-screen w-full relative flex">
-      <div className="flex-1 h-full overflow-hidden">
-        <div
-          ref={containerRef}
-          id="amis-app-container"
-          className="h-full w-full"
-        />
-      </div>
-      <CopilotSidebar
-        instructions="你是一个低代码专家。你可以通过调用 updateAmisSchema 来帮助用户生成或修改 amis 页面配置。你可以看到当前的 schema，并在用户要求时进行改进。"
-        defaultOpen={true}
-        labels={{
-          title: "Amis AI 助手",
-          initial:
-            "你好！我可以帮你通过微前端方式设计低代码页面。你可以对我说：'帮我加一个注册表单' 或者 '修改页面标题'。",
+    <>
+      {/* 加载 amis SDK 样式 */}
+      <link rel="stylesheet" href="/amis/sdk.css" />
+      <link rel="stylesheet" href="/amis/helper.css" />
+      <link rel="stylesheet" href="/amis/iconfont.css" />
+
+      {/* 加载 amis SDK 脚本 */}
+      <Script
+        src="/amis/sdk.js"
+        strategy="afterInteractive"
+        onLoad={() => {
+          console.log("Amis SDK loaded");
+          setSdkReady(true);
+        }}
+        onError={(e) => {
+          console.error("Failed to load Amis SDK:", e);
         }}
       />
-    </main>
+
+      <main className="h-screen w-full relative flex">
+        <div className="flex-1 h-full overflow-hidden">
+          <div
+            ref={containerRef}
+            id="amis-app-container"
+            className="h-full w-full"
+          />
+        </div>
+        <CopilotSidebar
+          instructions="你是一个低代码专家。你可以通过调用 updateAmisSchema 来帮助用户生成或修改 amis 页面配置。你可以看到当前的 schema，并在用户要求时进行改进。"
+          defaultOpen={true}
+          labels={{
+            title: "Amis AI 助手",
+            initial:
+              "你好！我可以帮你通过微前端方式设计低代码页面。你可以对我说：'帮我加一个注册表单' 或者 '修改页面标题'。",
+          }}
+        />
+      </main>
+    </>
   );
 }
