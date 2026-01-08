@@ -124,25 +124,25 @@ export default function AmisEditorPage() {
     },
   });
 
-  useCopilotAction({
-    name: "retrieveDocumentation",
-    description: "检索 amis 相关文档",
-    available: "enabled",
-    parameters: [
-      { name: "query", type: "string", required: true },
-      { name: "taskType", type: "string", required: true },
-    ],
-    render: ({ args, status, result }) => {
-      return (
-        <DocRetrievalCard
-          query={args.query}
-          taskType={args.taskType}
-          status={status}
-          result={result}
-        />
-      );
-    },
-  });
+  // useCopilotAction({
+  //   name: "retrieveDocumentation",
+  //   description: "检索 amis 相关文档",
+  //   available: "enabled",
+  //   parameters: [
+  //     { name: "query", type: "string", required: true },
+  //     { name: "taskType", type: "string", required: true },
+  //   ],
+  //   render: ({ args, status, result }) => {
+  //     return (
+  //       <DocRetrievalCard
+  //         query={args.query}
+  //         taskType={args.taskType}
+  //         status={status}
+  //         result={result}
+  //       />
+  //     );
+  //   },
+  // });
 
   // useEffect(() => {
   //   if (isClient && containerRef.current && !microAppRef.current) {
