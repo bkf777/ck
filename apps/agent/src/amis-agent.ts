@@ -151,6 +151,8 @@ const retrieveDocumentation = tool(
     const { query, taskType } = args;
 
     try {
+      // 确保索引已初始化
+      await initializeIndexer(process.env.DOCS_ROOT);
       const indexer = getIndexer(process.env.DOCS_ROOT);
 
       // 调用索引搜索
@@ -360,34 +362,23 @@ function getAllDocFiles(dir: string, fileList: string[] = []): string[] {
 
 /**
  * 1.5 文档关联节点 (Docs Associate Node)
- * 职责：判断任务是否与 amis 构建相关；若相关则检索并关联文档地址到任务
+ * 职责：一次性为所有任务检索并关联文档地址，避免重复检索
  */
 async function docs_associate_node(
   state: AmisAgentState,
   config: RunnableConfig
 ) {
-  const currentIndex = state.currentTaskIndex || 0;
   const tasks = state.tasks || [];
 
-  if (currentIndex >= tasks.length) {
+  // 如果已经处理过文档关联，跳过
+  if (tasks.length > 0 && tasks[0].docHints && tasks[0].docHints!.length > 0) {
+    console.log("✅ [DocsAssociate] 文档已关联，跳过重复检索");
     return {};
   }
 
-  const task = tasks[currentIndex];
-
-  const related = isAmisRelated(task);
-  const startEvent: ExecutionEvent = {
-    type: "doc_retrieval",
-    timestamp: new Date().toISOString(),
-    taskId: task.id,
-    message: related
-      ? `开始为任务检索文档：${task.description}`
-      : `任务与 amis 无明显关联，跳过文档检索`,
-  };
-
-  if (!related) {
-    return { tasks, executionLog: [...(state.executionLog || []), startEvent] };
-  }
+  console.log(
+    `\n📚 [DocsAssociate] 开始为 ${tasks.length} 个任务批量检索文档...`
+  );
 
   try {
     // 动态读取文档列表
@@ -400,13 +391,22 @@ async function docs_associate_node(
     }
 
     const model = new ChatAnthropic({
-      temperature: 0.1, // Lower temperature for selection
+      temperature: 0.1,
       model: "glm-4.7",
       anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
       anthropicApiUrl: process.env.ANTHROPIC_API_URL || "",
     });
 
-    const prompt = `你是一个文档助手。请根据任务描述，从给定的文件列表中找出最相关的文档。
+    // 批量处理所有任务，一次性为所有任务检索文档
+    const updatedTasks = await Promise.all(
+      tasks.map(async (task) => {
+        const related = isAmisRelated(task);
+
+        if (!related) {
+          return task;
+        }
+
+        const prompt = `你是一个文档助手。请根据任务描述，从给定的文件列表中找出最相关的文档。
 
 任务描述：${task.description}
 任务类型：${task.type}
@@ -420,52 +420,70 @@ ${allDocs.join("\n")}
 2. 必须精确匹配列表中的路径。
 例如：["src/docs/components/form/input-text.md"]`;
 
-    const response = await model.invoke([
-      new SystemMessage({ content: "你是 amis 文档专家" }),
-      new HumanMessage({ content: prompt }),
-    ]);
+        try {
+          const response = await model.invoke([
+            new SystemMessage({ content: "你是 amis 文档专家" }),
+            new HumanMessage({ content: prompt }),
+          ]);
 
-    let selectedPaths: string[] = [];
-    const content = response.content as string;
+          let selectedPaths: string[] = [];
+          const content = response.content as string;
 
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      selectedPaths = JSON.parse(jsonMatch[0]);
-    } else {
-      selectedPaths = JSON.parse(content);
-    }
+          const jsonMatch = content.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            selectedPaths = JSON.parse(jsonMatch[0]);
+          } else {
+            selectedPaths = JSON.parse(content);
+          }
 
-    if (!Array.isArray(selectedPaths)) {
-      selectedPaths = [];
-    }
+          if (!Array.isArray(selectedPaths)) {
+            selectedPaths = [];
+          }
 
-    const updates = {
-      docPaths: selectedPaths,
-      docHints: selectedPaths.map((path) => ({ path })),
-    };
+          return {
+            ...task,
+            docPaths: selectedPaths,
+            docHints: selectedPaths.map((path) => ({
+              path,
+              anchors: undefined,
+              score: undefined,
+              summary: undefined,
+            })),
+          };
+        } catch (e) {
+          console.error(`文档检索失败 for task ${task.id}:`, e);
+          return task;
+        }
+      })
+    );
 
-    const foundEvent: ExecutionEvent = {
+    // 统计检索结果
+    const totalDocs = updatedTasks.reduce(
+      (sum, task) => sum + (task.docPaths?.length || 0),
+      0
+    );
+
+    const event: ExecutionEvent = {
       type: "docs_found",
       timestamp: new Date().toISOString(),
-      taskId: task.id,
-      message: `找到 ${selectedPaths.length} 篇相关文档`,
-      data: { docPaths: updates.docPaths },
+      message: `批量文档检索完成：为 ${updatedTasks.length} 个任务检索了 ${totalDocs} 篇文档`,
+      data: { tasks: updatedTasks },
     };
 
-    tasks[currentIndex] = { ...task, ...updates } as Task;
+    console.log(`✅ [DocsAssociate] 批量检索完成：${totalDocs} 篇文档`);
+
     return {
-      tasks,
-      executionLog: [...(state.executionLog || []), startEvent, foundEvent],
+      tasks: updatedTasks,
+      executionLog: [...(state.executionLog || []), event],
     };
   } catch (e) {
     const errEvent: ExecutionEvent = {
       type: "error",
       timestamp: new Date().toISOString(),
-      taskId: task.id,
-      message: `文档检索异常：${(e as Error).message}`,
+      message: `批量文档检索异常：${(e as Error).message}`,
     };
     return {
-      executionLog: [...(state.executionLog || []), startEvent, errEvent],
+      executionLog: [...(state.executionLog || []), errEvent],
     };
   }
 }
@@ -621,9 +639,10 @@ async function executor_node(state: AmisAgentState, config: RunnableConfig) {
   });
 
   // 绑定工具
+  // 移除 ...tools 以防止 Executor 调用检索工具导致递归深度过大
+  // 文档检索已由 docs_associate 节点完成
   const modelWithTools = model.bindTools!([
     ...convertActionsToDynamicStructuredTools(state.copilotkit?.actions ?? []),
-    ...tools,
   ]);
 
   // 构建提示词
@@ -686,7 +705,7 @@ ${
   // 解析响应内容
   try {
     const content = response.content;
-    let result:any;
+    let result: any;
     if (typeof content === "string") {
       // 提取 ```json``` 代码块中的 JSON 对象
       const jsonCodeBlockMatch = content.match(
@@ -701,7 +720,7 @@ ${
       console.log(`✅ [Executor] 成功生成配置`);
     } else if (typeof content === "object") {
       console.log(`✅ [Executor] 获取配置成功`, content);
-      result = content[0].text
+      result = content[0].text;
     }
 
     // 更新任务状态
@@ -850,9 +869,11 @@ ${JSON.stringify(taskResults, null, 2)}
 function shouldContinue(state: AmisAgentState): string {
   const currentIndex = state.currentTaskIndex || 0;
   const totalTasks = state.tasks?.length || 0;
+  const tasks = state.tasks || [];
 
   // 若需要回到规划阶段（例如需求变化或失败后重规划）
   if (state.needsReplan) return "planner";
+
   // 如果上一个已执行任务失败，则回到规划节点复盘/重拆
   const lastIndex = currentIndex - 1;
   if (
@@ -890,8 +911,14 @@ function shouldContinue(state: AmisAgentState): string {
     return "composer";
   }
 
-  // 下一个步骤：为当前任务做文档关联与上下文准备
-  return "docs_associate";
+  // 检查是否需要执行文档关联（只在第一次或文档未关联时执行）
+  // 如果第一个任务还没有 docHints，说明还没有执行过文档关联
+  if (tasks.length > 0 && !tasks[0].docHints) {
+    return "docs_associate";
+  }
+
+  // 准备当前任务的上下文文档
+  return "context";
 }
 
 /**
@@ -916,9 +943,9 @@ function shouldRequestFeedback(state: AmisAgentState): boolean {
 const workflow = new StateGraph(AgentStateAnnotation)
   // 添加节点
   .addNode("planner", planner_node)
-  // 文档关联节点：为当前任务检索与绑定文档地址
+  // 文档关联节点：为所有任务批量检索并关联文档地址（只执行一次）
   .addNode("docs_associate", docs_associate_node)
-  // 上下文注入节点：根据已关联文档收集摘要/示例，准备给执行器
+  // 上下文注入节点：为当前任务准备具体的文档内容
   .addNode("context", context_node)
   .addNode("executor", executor_node)
   .addNode("tool_node", new ToolNode(tools))
@@ -934,7 +961,7 @@ const workflow = new StateGraph(AgentStateAnnotation)
   // 条件边：判断是否继续执行
   .addConditionalEdges("executor", shouldContinue, {
     planner: "planner",
-    docs_associate: "docs_associate",
+    context: "context",
     executor: "executor",
     tool_node: "tool_node",
     composer: "composer",
