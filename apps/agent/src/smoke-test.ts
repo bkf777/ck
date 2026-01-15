@@ -3,9 +3,9 @@
  * 验证工作流从规划 → 文档关联 → 执行 → 综合的端到端链路
  */
 
-import { initializeAgent, graph } from "./amis-agent.js";
+import { initializeAgent, graph, Task, ExecutionEvent } from "./amis-agent.js";
 import { AgentStateAnnotation } from "./amis-agent.js";
-import { HumanMessage } from "@langchain/core/messages";
+import { HumanMessage, BaseMessage } from "@langchain/core/messages";
 
 /**
  * 运行冒烟测试
@@ -29,19 +29,18 @@ async function runSmokeTest() {
         content:
           "我需要创建一个包含表单和数据表格的管理页面。表单有文本输入框、下拉选择框、日期选择和提交按钮。表格显示数据列表。",
       }),
-    ],
+    ] as BaseMessage[],
     userRequirement:
       "创建包含表单和CRUD表格的管理页面，表单包括文本输入、下拉框、日期选择，表格显示数据，支持编辑和删除。",
-    tasks: [],
+    tasks: [] as Task[],
     currentTaskIndex: 0,
-    taskResults: [],
     finalJson: {},
-    executionLog: [],
-    feedbackStatus: "pending",
+    executionLog: [] as ExecutionEvent[],
+    feedbackStatus: "pending" as const,
     tasksToRetry: [],
     streamedContent: "",
     error: null,
-    contextDocuments: [],
+    contextDocuments: [] as any[],
     needsReplan: false,
   };
 
@@ -51,7 +50,7 @@ async function runSmokeTest() {
 
   try {
     // 执行工作流（限制迭代次数防止无限循环）
-    let state = initialInput;
+    let state = initialInput as unknown as typeof AgentStateAnnotation.State;
     let iteration = 0;
     const maxIterations = 20;
 

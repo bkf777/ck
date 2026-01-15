@@ -5,12 +5,38 @@ import Script from "next/script";
 import { CopilotSidebar } from "@copilotkit/react-ui";
 import {
   useCoAgent,
-  useCopilotAction,
   useCopilotReadable,
+  useFrontendTool,
 } from "@copilotkit/react-core";
 
 // 动态导入 qiankun 避免 SSR 报错
 let loadMicroApp: any;
+
+const DEFAULT_SCHEMA = {
+  type: "page",
+  title: "品牌营销数据分析",
+  body: [
+    {
+      type: "form",
+      title: "",
+      mode: "inline",
+      wrapWithPanel: false,
+      body: [
+        {
+          type: "input-text",
+          name: "search_kw",
+          label: "品牌搜索",
+          placeholder: "请输入品牌名称",
+        },
+        {
+          type: "submit",
+          label: "查询",
+          level: "primary",
+        },
+      ],
+    },
+  ],
+};
 
 // 声明全局类型
 declare global {
@@ -61,7 +87,7 @@ type AgentState = {
   tasks?: Task[];
   currentTaskIndex?: number;
   executionLog?: ExecutionEvent[];
-  finalJson?: object;
+  schema?: object;
   userRequirement?: string;
 };
 
@@ -70,31 +96,6 @@ export default function AmisEditorPage() {
   const microAppRef = useRef<any>(null);
   const [isClient, setIsClient] = useState(false);
   const [sdkReady, setSdkReady] = useState(false);
-  const [schema, setSchema] = useState<Record<string, unknown>>({
-    type: "page",
-    title: "品牌营销数据分析",
-    body: [
-      {
-        type: "form",
-        title: "",
-        mode: "inline",
-        wrapWithPanel: false,
-        body: [
-          {
-            type: "input-text",
-            name: "search_kw",
-            label: "品牌搜索",
-            placeholder: "请输入品牌名称",
-          },
-          {
-            type: "submit",
-            label: "查询",
-            level: "primary",
-          },
-        ],
-      },
-    ],
-  });
 
   // 使用 useCoAgent 连接到 AmisEditorPageAgent
   const { state, setState } = useCoAgent<AgentState>({
@@ -103,53 +104,82 @@ export default function AmisEditorPage() {
       tasks: [],
       currentTaskIndex: 0,
       executionLog: [],
-      finalJson: {},
+      schema: DEFAULT_SCHEMA,
       userRequirement: "",
     },
   });
+  console.log(state);
+  // 注册任务状态展示动作
+  useFrontendTool(
+    {
+      name: "showExecutionStatus",
+      description: "展示任务执行状态进度面板",
+      parameters: [],
+      handler: async () => {
+        // 这是一个展示用的 Action，不需要实际执行逻辑
+        return "任务执行状态面板已展示";
+      },
+      render: () => {
+        const hasActiveTasks =
+          state.tasks &&
+          state.tasks.length > 0 &&
+          state.currentTaskIndex !== undefined;
+        console.log(state, "12332313");
+        const hasFinalResult =
+          state.schema && Object.keys(state.schema).length > 0;
+
+        if (!hasActiveTasks && !hasFinalResult) {
+          return <div className="p-4 text-gray-500">暂无任务执行状态</div>;
+        }
+
+        return (
+          <div className="w-full p-4 space-y-4 rounded-lg border border-gray-200 bg-white">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🤖</span>
+                <h3 className="font-bold text-gray-800">任务执行状态</h3>
+              </div>
+            </div>
+
+            {/* 任务进度卡片 */}
+            {hasActiveTasks && (
+              <TaskProgressCard
+                tasks={state.tasks!}
+                currentTaskIndex={state.currentTaskIndex!}
+              />
+            )}
+
+            {/* 执行日志 */}
+            {state.executionLog && state.executionLog.length > 0 && (
+              <div className="bg-gray-50 border rounded-lg p-3">
+                <h4 className="font-bold text-sm text-gray-800 mb-2 flex items-center gap-2">
+                  <span>📊</span> 执行日志
+                </h4>
+                <Timeline events={state.executionLog} />
+              </div>
+            )}
+
+            {/* 最终结果 */}
+            {hasFinalResult && (
+              <FinalResultCard
+                schema={state.schema!}
+                executionLog={state.executionLog}
+              />
+            )}
+          </div>
+        );
+      },
+    },
+    [state]
+  );
 
   // 监听 agent 状态变化（用于调试和 UI 更新）
-  useEffect(() => {
-    console.log("AmisEditorPageAgent state updated:", state);
-
-    // 当收到最终生成的 JSON 时，自动应用到编辑器
-    if (state.finalJson && Object.keys(state.finalJson).length > 0) {
-      console.log("自动应用生成的 schema:", state.finalJson);
-      updateSchema(state.finalJson as Record<string, unknown>);
-      setSchema(state.finalJson as Record<string, unknown>);
-    }
-  }, [state]);
 
   const ref = useRef<AmisInstance | null>(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  // 让 Copilot 能够读取当前的 schema
-  useCopilotReadable({
-    description: "当前 amis 页面的配置 (schema)",
-    value: schema,
-  });
-
-  // 让 Copilot 能够更新 schema
-  useCopilotAction({
-    name: "updateAmisSchema",
-    description: "更新 amis 页面配置",
-    parameters: [
-      {
-        name: "schema",
-        type: "object",
-        description: "新的 amis schema 配置",
-        required: true,
-      },
-    ],
-    handler: ({ schema }) => {
-      console.log("Updating schema via Copilot:", schema);
-      updateSchema(schema as Record<string, unknown>);
-      setSchema(schema as Record<string, unknown>);
-    },
-  });
 
   // useCopilotAction({
   //   name: "retrieveDocumentation",
@@ -203,7 +233,10 @@ export default function AmisEditorPage() {
   useEffect(() => {
     if (sdkReady && isClient && containerRef.current && !window.amisScoped) {
       const amis = window.amisRequire("amis/embed");
-      ref.current = amis.embed(containerRef.current, schema);
+      ref.current = amis.embed(
+        containerRef.current,
+        state.schema || DEFAULT_SCHEMA
+      );
     }
   }, [sdkReady, isClient]);
 
@@ -240,8 +273,7 @@ export default function AmisEditorPage() {
     state.currentTaskIndex !== undefined;
 
   // 判断是否有最终结果
-  const hasFinalResult =
-    state.finalJson && Object.keys(state.finalJson).length > 0;
+  const hasFinalResult = state.schema && Object.keys(state.schema).length > 0;
 
   return (
     <>
@@ -280,61 +312,6 @@ export default function AmisEditorPage() {
               "你好！我可以帮你通过微前端方式设计低代码页面。你可以对我说：'帮我加一个注册表单' 或者 '修改页面标题'。",
           }}
         />
-
-        {/* 状态面板 - 显示任务进程 */}
-        {(hasActiveTasks || hasFinalResult) && (
-          <div className="absolute top-4 left-4 w-96 max-h-[calc(100vh-2rem)] overflow-auto rounded-lg shadow-2xl border border-gray-200 bg-white z-10">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🤖</span>
-                <h3 className="font-bold text-gray-800">任务执行状态</h3>
-              </div>
-              <button
-                onClick={() => {
-                  setState({
-                    tasks: [],
-                    currentTaskIndex: 0,
-                    executionLog: [],
-                    finalJson: {},
-                    userRequirement: "",
-                  });
-                }}
-                className="text-gray-400 hover:text-gray-600 transition"
-                title="清除状态"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-4 space-y-4">
-              {/* 任务进度卡片 */}
-              {hasActiveTasks && (
-                <TaskProgressCard
-                  tasks={state.tasks!}
-                  currentTaskIndex={state.currentTaskIndex!}
-                />
-              )}
-
-              {/* 执行日志 */}
-              {state.executionLog && state.executionLog.length > 0 && (
-                <div className="bg-gray-50 border rounded-lg p-3">
-                  <h4 className="font-bold text-sm text-gray-800 mb-2 flex items-center gap-2">
-                    <span>📊</span> 执行日志
-                  </h4>
-                  <Timeline events={state.executionLog} />
-                </div>
-              )}
-
-              {/* 最终结果 */}
-              {hasFinalResult && (
-                <FinalResultCard
-                  finalJson={state.finalJson!}
-                  executionLog={state.executionLog}
-                />
-              )}
-            </div>
-          </div>
-        )}
       </main>
     </>
   );
@@ -573,20 +550,20 @@ function TaskProgressCard({
  * 用于显示生成的 amis JSON 配置
  */
 function FinalResultCard({
-  finalJson,
+  schema,
   executionLog,
 }: {
-  finalJson: object;
+  schema: object;
   executionLog?: ExecutionEvent[];
 }) {
   const handleCopyJson = () => {
-    navigator.clipboard.writeText(JSON.stringify(finalJson, null, 2));
+    navigator.clipboard.writeText(JSON.stringify(schema, null, 2));
   };
 
   const handleApplySchema = () => {
     // 触发自定义事件来应用 schema
     window.dispatchEvent(
-      new CustomEvent("apply-amis-schema", { detail: finalJson })
+      new CustomEvent("apply-amis-schema", { detail: schema })
     );
   };
 
@@ -623,7 +600,7 @@ function FinalResultCard({
         </summary>
         <div className="mt-2 relative">
           <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-auto max-h-96">
-            {JSON.stringify(finalJson, null, 2)}
+            {JSON.stringify(schema, null, 2)}
           </pre>
         </div>
       </details>
