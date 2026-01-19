@@ -53,31 +53,73 @@ async function runSmokeTest() {
     let state = initialInput as unknown as typeof AgentStateAnnotation.State;
     let iteration = 0;
     const maxIterations = 20;
+    let lastExecutionLogIndex = 0;
+    const lastTaskStatusMap = new Map<string, string>();
 
     while (iteration < maxIterations) {
       iteration++;
       console.log(`\n📍 [Iteration ${iteration}]`);
+      console.log("🔄 步骤：调用工作流...");
 
       // 调用工作流（同步执行一步）
       const result = await graph.invoke(state, {
-        configurable: { thread_id: "test-thread" },
+        configurable: { thread_id: "test-thread", recursionLimit: 100 },
       });
 
       // 更新状态
       state = result;
+      console.log("✅ 步骤：工作流执行完成");
+
+      // 打印新增执行日志（逐步）
+      if (
+        state.executionLog &&
+        state.executionLog.length > lastExecutionLogIndex
+      ) {
+        console.log("🧩 步骤：新增执行事件");
+        for (
+          let i = lastExecutionLogIndex;
+          i < state.executionLog.length;
+          i++
+        ) {
+          const event = state.executionLog[i];
+          const timestamp = new Date(event.timestamp).toLocaleTimeString(
+            "zh-CN",
+          );
+          console.log(
+            `   [${i + 1}] ${timestamp} | ${event.type.padEnd(20)} | ${
+              event.message || ""
+            }`,
+          );
+        }
+        lastExecutionLogIndex = state.executionLog.length;
+      }
+
+      // 打印任务状态变化（逐步）
+      if (state.tasks && state.tasks.length > 0) {
+        console.log("🧩 步骤：任务状态检查");
+        state.tasks.forEach((task, i) => {
+          const previousStatus = lastTaskStatusMap.get(task.id);
+          if (previousStatus !== task.status) {
+            console.log(
+              `   [任务 ${i + 1}] ${task.description} 状态变化：${previousStatus || "(无)"} -> ${task.status}`,
+            );
+            lastTaskStatusMap.set(task.id, task.status);
+          }
+        });
+      }
 
       // 打印关键信息
       if (state.tasks && state.tasks.length > 0) {
         console.log(`📋 任务数: ${state.tasks.length}`);
         console.log(
-          `   当前索引: ${state.currentTaskIndex}/${state.tasks.length}`
+          `   当前索引: ${state.currentTaskIndex}/${state.tasks.length}`,
         );
 
         // 打印当前任务
         if (state.currentTaskIndex < state.tasks.length) {
           const currentTask = state.tasks[state.currentTaskIndex];
           console.log(
-            `   当前任务: [${currentTask.status}] ${currentTask.description}`
+            `   当前任务: [${currentTask.status}] ${currentTask.description}`,
           );
           if (currentTask.docHints && currentTask.docHints.length > 0) {
             console.log(`   文档命中: ${currentTask.docHints.length} 个`);
@@ -125,7 +167,7 @@ async function runSmokeTest() {
         console.log(
           `[${i + 1}] ${timestamp} | ${event.type.padEnd(20)} | ${
             event.message || ""
-          }`
+          }`,
         );
       });
     }
@@ -137,16 +179,16 @@ async function runSmokeTest() {
     if (state.tasks && state.tasks.length > 0) {
       state.tasks.forEach((task, i) => {
         console.log(
-          `[${i + 1}] [${task.status.padEnd(10)}] ${task.description}`
+          `[${i + 1}] [${task.status.padEnd(10)}] ${task.description}`,
         );
         if (task.docHints && task.docHints.length > 0) {
           console.log(
-            `     📄 文档: ${task.docHints.map((h) => h.path).join(", ")}`
+            `     📄 文档: ${task.docHints.map((h) => h.path).join(", ")}`,
           );
         }
         if (task.result) {
           console.log(
-            `     ✅ 结果: ${JSON.stringify(task.result).slice(0, 50)}...`
+            `     ✅ 结果: ${JSON.stringify(task.result).slice(0, 50)}...`,
           );
         }
       });

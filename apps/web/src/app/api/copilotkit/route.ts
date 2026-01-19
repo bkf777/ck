@@ -25,12 +25,22 @@ const runtime = new CopilotRuntime({
         process.env.LANGGRAPH_DEPLOYMENT_URL || "http://localhost:8123",
       graphId: "amisAgent",
       langsmithApiKey: process.env.LANGSMITH_API_KEY || "",
+      assistantConfig: {
+        configurable: {
+          recursionLimit: 100,
+        },
+      },
     }),
     starterAgent: new LangGraphAgent({
       deploymentUrl:
         process.env.LANGGRAPH_DEPLOYMENT_URL || "http://localhost:8123",
       graphId: "starterAgent",
       langsmithApiKey: process.env.LANGSMITH_API_KEY || "",
+      assistantConfig: {
+        configurable: {
+          recursionLimit: 100,
+        },
+      },
     }),
   },
 });

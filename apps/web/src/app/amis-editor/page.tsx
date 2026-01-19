@@ -109,6 +109,35 @@ export default function AmisEditorPage() {
     },
   });
   console.log(state);
+
+  useCopilotReadable({
+    description: "当前 amis 页面 schema",
+    value: state.schema || DEFAULT_SCHEMA,
+  });
+
+  useFrontendTool(
+    {
+      name: "updateAmisSchema",
+      description: "更新 amis 页面配置 schema",
+      parameters: [
+        {
+          name: "schema",
+          type: "object",
+          required: true,
+        },
+      ],
+      handler: async ({ schema }: { schema: object }) => {
+        const nextSchema = schema as Record<string, unknown>;
+        setState((prev) => ({
+          ...prev,
+          schema: nextSchema,
+        }));
+        updateSchema(nextSchema);
+        return "schema 已更新";
+      },
+    },
+    [state],
+  );
   // 注册任务状态展示动作
   useFrontendTool(
     {
@@ -170,7 +199,7 @@ export default function AmisEditorPage() {
         );
       },
     },
-    [state]
+    [state],
   );
 
   // 监听 agent 状态变化（用于调试和 UI 更新）
@@ -235,13 +264,19 @@ export default function AmisEditorPage() {
       const amis = window.amisRequire("amis/embed");
       ref.current = amis.embed(
         containerRef.current,
-        state.schema || DEFAULT_SCHEMA
+        state.schema || DEFAULT_SCHEMA,
       );
     }
   }, [sdkReady, isClient]);
 
+  useEffect(() => {
+    if (state.schema) {
+      updateSchema(state.schema as Record<string, unknown>);
+    }
+  }, [state.schema]);
+
   // 当 schema 更新时重新渲染
-  const updateSchema = (newSchema: Record<string, unknown>) => {
+  function updateSchema(newSchema: Record<string, unknown>) {
     console.log("准备更新 schema:", newSchema);
     console.log("ref.current:", ref.current);
     console.log("ref.current?.updateSchema:", ref.current?.updateSchema);
@@ -256,7 +291,7 @@ export default function AmisEditorPage() {
     } else {
       console.warn("⚠️ amis 实例未就绪或 updateSchema 方法不可用");
     }
-  };
+  }
 
   if (!isClient) {
     return (
@@ -482,8 +517,8 @@ function TaskProgressCard({
                 isCompleted
                   ? "bg-green-50"
                   : isCurrent
-                  ? "bg-purple-50 border border-purple-300"
-                  : "bg-gray-50"
+                    ? "bg-purple-50 border border-purple-300"
+                    : "bg-gray-50"
               }`}
             >
               <div
@@ -491,8 +526,8 @@ function TaskProgressCard({
                   isCompleted
                     ? "bg-green-500 text-white"
                     : isCurrent
-                    ? "bg-purple-500 text-white animate-pulse"
-                    : "bg-gray-300 text-gray-600"
+                      ? "bg-purple-500 text-white animate-pulse"
+                      : "bg-gray-300 text-gray-600"
                 }`}
               >
                 {isCompleted ? "✓" : index + 1}
@@ -563,7 +598,7 @@ function FinalResultCard({
   const handleApplySchema = () => {
     // 触发自定义事件来应用 schema
     window.dispatchEvent(
-      new CustomEvent("apply-amis-schema", { detail: schema })
+      new CustomEvent("apply-amis-schema", { detail: schema }),
     );
   };
 
@@ -626,10 +661,10 @@ function FinalResultCard({
                       event.type === "error"
                         ? "bg-red-100 text-red-700"
                         : event.type === "task_complete"
-                        ? "bg-green-100 text-green-700"
-                        : event.type === "task_start"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-700"
+                          ? "bg-green-100 text-green-700"
+                          : event.type === "task_start"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-700"
                     }`}
                   >
                     {event.type}
@@ -669,8 +704,8 @@ function Timeline({ events }: { events: ExecutionEvent[] }) {
                   event.type === "error"
                     ? "bg-red-100 text-red-700"
                     : event.type === "task_complete"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-blue-100 text-blue-700"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-blue-100 text-blue-700"
                 }`}
               >
                 {event.type}

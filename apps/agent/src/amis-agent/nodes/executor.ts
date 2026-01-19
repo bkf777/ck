@@ -18,7 +18,7 @@ import { ExecutionEvent } from "../types.js";
 // TODO: 提示词需要修改
 export async function executor_node(
   state: AmisAgentState,
-  config: RunnableConfig
+  config: RunnableConfig,
 ) {
   const currentIndex = state.currentTaskIndex || 0;
   const tasks = state.tasks || [];
@@ -39,7 +39,7 @@ export async function executor_node(
   console.log(
     `\n⚙️ [Executor] 执行任务 ${currentIndex + 1}/${tasks.length}: ${
       task.description
-    }`
+    }`,
   );
 
   // 更新任务状态
@@ -87,7 +87,7 @@ ${
               d.codeExamples || []
             )
               .slice(0, 1)
-              .join("\n")}`
+              .join("\n")}`,
         )
         .join("\n\n")}\n请遵循文档规范进行配置。`
     : ""
@@ -105,18 +105,20 @@ ${
   // 调用 LLM
   const response = await modelWithTools.invoke(
     [new HumanMessage({ content: prompt })],
-    config
+    config,
   );
 
   let result: any = null;
   let errorMessage: string | undefined;
 
-  // 检查是否有工具调用
+  // 检查是否有工具调用（CopilotKit 前端动作）
   if (response.tool_calls && response.tool_calls.length > 0) {
-    // 如果调用了文档检索工具，返回工具调用结果console.log(`📚 [Executor] 调用工具: ${response.tool_calls[0].name}`);
-    return new Command({
-      goto: "tool_node",
-    });
+    console.log(`📚 [Executor] 触发前端动作: ${response.tool_calls[0].name}`);
+    return {
+      tasks,
+      currentTaskIndex: currentIndex,
+      messages: [...(state.messages || []), response as AIMessage],
+    };
   }
 
   // 解析响应内容
@@ -125,7 +127,7 @@ ${
     if (typeof content === "string") {
       // 提取 ```json``` 代码块中的 JSON 对象
       const jsonCodeBlockMatch = content.match(
-        /```json[\s\S]*?\n([\s\S]*?)\n```/
+        /```json[\s\S]*?\n([\s\S]*?)\n```/,
       );
       if (jsonCodeBlockMatch) {
         result = JSON.parse(jsonCodeBlockMatch[1]);
@@ -170,6 +172,17 @@ ${
     body: currentResults,
   };
 
+  const updateSchemaCall = new AIMessage({
+    content: "更新页面 schema",
+    tool_calls: [
+      {
+        id: `call_${Date.now()}_update_schema`,
+        name: "updateAmisSchema",
+        args: { schema: tempSchema },
+      },
+    ],
+  });
+
   return {
     currentTaskIndex: currentIndex + 1,
     tasks,
@@ -177,5 +190,6 @@ ${
     executionLog: [...(state.executionLog || []), event],
     // 本轮用过的上下文清空，交给下个任务的 context 节点重新准备
     contextDocuments: [],
+    messages: [...(state.messages || []), updateSchemaCall],
   };
 }
