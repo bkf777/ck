@@ -583,7 +583,6 @@ jobs:
           echo "✅ .env.production 文件已创建"
 
       - name: 设置SSH密钥
-        if: secrets.DEPLOY_SSH_KEY != ''
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
@@ -591,7 +590,6 @@ jobs:
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
       - name: 部署应用到服务器
-        if: secrets.DEPLOY_SSH_KEY != ''
         run: |
           echo "🚀 开始部署到 ${{ env.DEPLOY_ENV }} 环境..."
 
@@ -646,7 +644,6 @@ jobs:
           EOF
 
       - name: 健康检查
-        if: secrets.DEPLOY_SSH_KEY != ''
         run: |
           echo "🔍 执行健康检查..."
           sleep 60
