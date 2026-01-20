@@ -689,11 +689,46 @@ async function runSmokeTest() {
       console.log(`\n📍 [Iteration ${iteration}]`);
       console.log("🔄 步骤：调用工作流...");
 
-      // 调用工作流（同步执行一步）
-      const result = await graph.invoke(state, {
-        recursionLimit: 200,
-        configurable: { thread_id: "test-thread" },
-      });
+      // 调用工作流（同步执行一步）- 带重试机制
+      let result;
+      let retryCount = 0;
+      const maxRetries = 3;
+
+      while (retryCount < maxRetries) {
+        try {
+          result = await graph.invoke(state, {
+            recursionLimit: 200,
+            configurable: { thread_id: "test-thread" },
+          });
+          break; // 成功则跳出重试循环
+        } catch (error) {
+          const err = error as any;
+          retryCount++;
+
+          // 检查是否是网络错误
+          const isNetworkError =
+            err.code === "ECONNRESET" ||
+            err.code === "ETIMEDOUT" ||
+            err.code === "EHOSTUNREACH" ||
+            err.message?.includes("fetch failed") ||
+            err.message?.includes("read ECONNRESET");
+
+          if (isNetworkError && retryCount < maxRetries) {
+            const waitTime = Math.min(
+              1000 * Math.pow(2, retryCount - 1),
+              10000,
+            ); // 指数退避
+            console.log(
+              `⚠️ 网络错误 (${err.code}), ${waitTime}ms 后重试 (${retryCount}/${maxRetries})...`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, waitTime));
+            continue;
+          }
+
+          // 如果不是网络错误或重试次数已尽，抛出错误
+          throw error;
+        }
+      }
 
       // 更新状态
       state = result;

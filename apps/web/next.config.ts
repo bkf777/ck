@@ -21,6 +21,14 @@ const nextConfig: NextConfig = {
     "amis-ui",
     "amis-core",
     "amis-formula",
+    "@ag-ui/langgraph",
+    "@ag-ui/client",
+    "@ag-ui/core",
   ],
+  webpack: (config) => {
+    config.devtool =
+      process.env.NODE_ENV === "production" ? false : "source-map";
+    return config;
+  },
 };
 export default nextConfig;

@@ -36,6 +36,14 @@ COPY --from=builder /app/pnpm-workspace.yaml ./
 
 WORKDIR /app/apps/agent
 
+# 创建 .env 文件（从环境变量生成）
+RUN echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}" > .env && \
+    echo "ANTHROPIC_API_URL=${ANTHROPIC_API_URL:-}" >> .env && \
+    echo "LANGSMITH_TRACING=${LANGSMITH_TRACING:-}" >> .env && \
+    echo "LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT:-}" >> .env && \
+    echo "LANGSMITH_API_KEY=${LANGSMITH_API_KEY:-}" >> .env && \
+    echo "LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-}" >> .env
+
 EXPOSE 8123
 
 # 运行 LangGraph 服务

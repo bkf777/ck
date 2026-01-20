@@ -49,6 +49,7 @@ $secrets = @{
     "LANGSMITH_ENDPOINT" = "LangSmith API endpoint (optional)"
     "LANGSMITH_API_KEY" = "LangSmith API key (optional)"
     "LANGSMITH_PROJECT" = "LangSmith project name (optional)"
+    "LANGGRAPH_DEPLOYMENT_URL" = "LangGraph deployment URL (e.g., https://langgraph.example.com, optional)"
     "DEPLOY_SSH_KEY" = "SSH private key (for deployment, optional)"
     "DEPLOY_HOST" = "Deployment server address (optional)"
     "DEPLOY_USER" = "SSH username (optional)"
@@ -72,6 +73,7 @@ $optional = @(
     "LANGSMITH_ENDPOINT",
     "LANGSMITH_API_KEY",
     "LANGSMITH_PROJECT",
+    "LANGGRAPH_DEPLOYMENT_URL",
     "DEPLOY_SSH_KEY",
     "DEPLOY_HOST",
     "DEPLOY_USER",

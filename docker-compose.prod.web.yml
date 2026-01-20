@@ -15,6 +15,7 @@ services:
       - LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT}
       - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
       - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
+      - LANGGRAPH_DEPLOYMENT_URL=${LANGGRAPH_DEPLOYMENT_URL:-http://agent:8123}
     restart: unless-stopped
     networks:
       - copilotkit-network

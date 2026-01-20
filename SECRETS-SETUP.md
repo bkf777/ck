@@ -14,32 +14,38 @@
 
 #### 必需配置（4个）
 
-| Secret 名称 | 说明 | 示例值 |
-|-----------|------|--------|
-| `ALIYUN_REGISTRY_USERNAME` | 阿里云容器镜像服务用户名 | `your-username` |
-| `ALIYUN_REGISTRY_PASSWORD` | 阿里云容器镜像服务密码 | `your-password` |
-| `ANTHROPIC_API_KEY` | Anthropic API密钥 | `sk-ant-xxxxx` |
-| `ANTHROPIC_API_URL` | Anthropic API地址 | `https://claude.mk8s.cn/` |
+| Secret 名称                | 说明                     | 示例值                    |
+| -------------------------- | ------------------------ | ------------------------- |
+| `ALIYUN_REGISTRY_USERNAME` | 阿里云容器镜像服务用户名 | `your-username`           |
+| `ALIYUN_REGISTRY_PASSWORD` | 阿里云容器镜像服务密码   | `your-password`           |
+| `ANTHROPIC_API_KEY`        | Anthropic API密钥        | `sk-ant-xxxxx`            |
+| `ANTHROPIC_API_URL`        | Anthropic API地址        | `https://claude.mk8s.cn/` |
 
 #### 可选配置（LangSmith集成）
 
-| Secret 名称 | 说明 | 示例值 |
-|-----------|------|--------|
-| `LANGSMITH_TRACING` | 启用跟踪 | `true` |
-| `LANGSMITH_ENDPOINT` | API端点 | `https://api.smith.langchain.com` |
-| `LANGSMITH_API_KEY` | API密钥 | `lsv2_pt_xxxxx` |
-| `LANGSMITH_PROJECT` | 项目名称 | `pr-advanced-toenail-67` |
+| Secret 名称          | 说明     | 示例值                            |
+| -------------------- | -------- | --------------------------------- |
+| `LANGSMITH_TRACING`  | 启用跟踪 | `true`                            |
+| `LANGSMITH_ENDPOINT` | API端点  | `https://api.smith.langchain.com` |
+| `LANGSMITH_API_KEY`  | API密钥  | `lsv2_pt_xxxxx`                   |
+| `LANGSMITH_PROJECT`  | 项目名称 | `pr-advanced-toenail-67`          |
+
+#### 可选配置（LangGraph部署）
+
+| Secret 名称                | 说明             | 示例值                                                 |
+| -------------------------- | ---------------- | ------------------------------------------------------ |
+| `LANGGRAPH_DEPLOYMENT_URL` | LangGraph部署URL | `https://langgraph.example.com` 或 `http://agent:8123` |
 
 #### 可选配置（自动部署）
 
-| Secret 名称 | 说明 | 获取方式 |
-|-----------|------|--------|
-| `DEPLOY_SSH_KEY` | SSH私钥 | 本地生成的id_rsa内容 |
-| `DEPLOY_HOST` | 服务器IP | `123.45.67.89` |
-| `DEPLOY_USER` | SSH用户名 | `root` |
-| `DEPLOY_PATH` | 部署路径 | `/opt/copilotkit` |
-| `DEPLOY_URL` | 前端地址 | `https://app.example.com` |
-| `API_URL` | API地址 | `https://api.example.com` |
+| Secret 名称      | 说明      | 获取方式                  |
+| ---------------- | --------- | ------------------------- |
+| `DEPLOY_SSH_KEY` | SSH私钥   | 本地生成的id_rsa内容      |
+| `DEPLOY_HOST`    | 服务器IP  | `123.45.67.89`            |
+| `DEPLOY_USER`    | SSH用户名 | `root`                    |
+| `DEPLOY_PATH`    | 部署路径  | `/opt/copilotkit`         |
+| `DEPLOY_URL`     | 前端地址  | `https://app.example.com` |
+| `API_URL`        | API地址   | `https://api.example.com` |
 
 ### 方法 2：使用 GitHub CLI（如果已安装）
 
@@ -70,6 +76,7 @@ gh secret list
 ```
 ALIYUN_REGISTRY_USERNAME
 ```
+
 - 访问：https://cr.console.aliyun.com/
 - 进入：左侧菜单 > 容器镜像服务 > 个人实例 > 访问凭证
 - 获取：用户名
@@ -77,6 +84,7 @@ ALIYUN_REGISTRY_USERNAME
 ```
 ALIYUN_REGISTRY_PASSWORD
 ```
+
 - 同上页面获取密码
 - 或设置新的固定密码
 
@@ -85,7 +93,9 @@ ALIYUN_REGISTRY_PASSWORD
 ```
 ANTHROPIC_API_KEY
 ```
+
 从项目的 `.env` 文件或Anthropic控制台获取：
+
 ```
 sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
@@ -93,7 +103,9 @@ sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 ANTHROPIC_API_URL
 ```
+
 从项目的 `.env` 文件获取：
+
 ```
 https://claude.mk8s.cn/
 ```
@@ -101,8 +113,9 @@ https://claude.mk8s.cn/
 ### 3. LangSmith（可选）
 
 从项目的 `.env` 文件获取：
+
 - `LANGSMITH_TRACING`
-- `LANGSMITH_ENDPOINT` 
+- `LANGSMITH_ENDPOINT`
 - `LANGSMITH_API_KEY`
 - `LANGSMITH_PROJECT`
 
@@ -111,6 +124,7 @@ https://claude.mk8s.cn/
 #### 生成 SSH 密钥
 
 在本地机器运行：
+
 ```bash
 # 生成 SSH 密钥对
 ssh-keygen -t rsa -b 4096 -C "deploy@copilotkit" -f ~/.ssh/copilotkit_deploy
@@ -144,6 +158,7 @@ gh secret list
 ```
 
 输出应该显示所有已配置的 Secrets：
+
 ```
 ALIYUN_REGISTRY_USERNAME   Updated Jan 20, 2026 at 10:00
 ALIYUN_REGISTRY_PASSWORD   Updated Jan 20, 2026 at 10:01
@@ -191,6 +206,7 @@ gh run view <RUN_ID> --log
 ### Q3: 如何删除不需要的 Secret？
 
 **A:** 点击 Secret 旁的删除按钮，或使用 CLI：
+
 ```powershell
 gh secret delete SECRET_NAME
 ```
@@ -198,13 +214,15 @@ gh secret delete SECRET_NAME
 ### Q4: 推送代码后 CI/CD 没有触发？
 
 **A:** 检查以下几点：
+
 1. 确认推送到了 `main` 或 `develop` 分支
 2. 检查 `.github/workflows/ci-cd.yml` 文件是否存在
 3. 在 Actions 标签中查看是否有错误信息
 
 ### Q5: 如何手动运行工作流？
 
-**A:** 
+**A:**
+
 - 网页界面：Actions > CI/CD Pipeline > Run workflow
 - CLI：`gh workflow run ci-cd.yml`
 
