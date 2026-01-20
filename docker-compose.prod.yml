@@ -40,8 +40,8 @@ services:
       - "8123:8123"
     environment:
       - NODE_ENV=production
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_URL=${ANTHROPIC_API_URL}
     restart: unless-stopped
     networks:
       - copilotkit-network

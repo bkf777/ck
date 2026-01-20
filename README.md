@@ -20,7 +20,7 @@ This project is organized as a monorepo using [Turborepo](https://turbo.build) a
 
 - Node.js 18+
 - [pnpm](https://pnpm.io/installation) 9.15.0 or later
-- OpenAI API Key (for the LangGraph agent)
+- Anthropic API Key（可选：自定义 `ANTHROPIC_API_URL`）
 
 ## Getting Started
 
@@ -29,10 +29,11 @@ This project is organized as a monorepo using [Turborepo](https://turbo.build) a
 pnpm install
 ```
 
-2. Set up your OpenAI API key:
+2. 设置你的 Anthropic API Key（以及可选的 API URL）:
 ```bash
 cd apps/agent
-echo "OPENAI_API_KEY=your-openai-api-key-here" > .env
+echo "ANTHROPIC_API_KEY=your-anthropic-api-key-here" > .env
+echo "ANTHROPIC_API_URL=https://api.anthropic.com" >> .env
 ```
 
 3. Start the development servers:
@@ -96,5 +97,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ### Agent Connection Issues
 If you see "I'm having trouble connecting to my tools", make sure:
 1. The LangGraph agent is running on port 8000
-2. Your OpenAI API key is set correctly
+2. `ANTHROPIC_API_KEY`（以及需要时的 `ANTHROPIC_API_URL`）设置正确
 3. Both servers started successfully
