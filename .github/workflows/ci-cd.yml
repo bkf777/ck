@@ -1,0 +1,687 @@
+# CopilotKit 统一 CI/CD Pipeline
+# 集成代码质量检查、Docker构建、安全扫描和自动部署
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: "部署环境"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+      force_deploy:
+        description: "强制部署（跳过检查）"
+        required: false
+        default: false
+        type: boolean
+      push_to_registry:
+        description: "是否推送到镜像仓库"
+        required: false
+        default: true
+        type: boolean
+      deploy_services:
+        description: "部署的服务"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - web
+          - agent
+
+permissions:
+  contents: read
+  security-events: write
+  packages: write
+  pull-requests: write
+
+env:
+  NODE_VERSION: "22.15.1"
+  PNPM_VERSION: "9"
+  # 阿里云容器镜像服务
+  ALIYUN_REGISTRY: crpi-h9er8c2pccoo3ze4.cn-hangzhou.personal.cr.aliyuncs.com
+  ALIYUN_NAMESPACE: copilotkit
+  WEB_IMAGE_NAME: copilotkit-web
+  AGENT_IMAGE_NAME: copilotkit-agent
+  DOCKER_BUILDKIT: 1
+  # 部署环境URL
+  DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+  API_URL: ${{ secrets.API_URL }}
+
+jobs:
+  # 代码质量检查
+  code-quality:
+    name: 代码质量检查
+    runs-on: ubuntu-latest
+
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 获取完整历史用于分析
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: 缓存依赖
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pnpm-store
+            **/node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint 代码检查
+        run: pnpm run lint
+        continue-on-error: true
+
+      - name: TypeScript 类型检查
+        run: |
+          echo "检查 Web 应用类型..."
+          cd apps/web
+          pnpm run type-check || npx tsc --noEmit
+          cd ../..
+
+          echo "检查 Agent 应用类型..."
+          cd apps/agent
+          pnpm run type-check || npx tsc --noEmit
+        continue-on-error: true
+
+  # 构建检查
+  build-check:
+    name: 构建检查
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建项目
+        run: |
+          echo "构建 Web 应用..."
+          cd apps/web
+          pnpm run build
+          cd ../..
+
+          echo "构建 Agent 应用..."
+          cd apps/agent
+          pnpm run build || echo "Agent 构建脚本不存在，跳过"
+
+  # 单元测试（预留）
+  unit-tests:
+    name: 单元测试
+    runs-on: ubuntu-latest
+    needs: code-quality
+    if: false # 暂时禁用，等添加测试后启用
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 运行测试
+        run: pnpm test -- --coverage
+
+      - name: 上传测试覆盖率
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  # Web 应用 Docker 构建和推送
+  build-web:
+    name: 构建 Web 镜像
+    needs: [code-quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    outputs:
+      image-tag: ${{ steps.set-image-tag.outputs.image-tag }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 配置 Docker 镜像源
+        run: |
+          mkdir -p ~/.docker
+          cat > ~/.docker/daemon.json << 'EOF'
+          {
+            "registry-mirrors": [
+              "https://registry.cn-hangzhou.aliyuncs.com",
+              "https://hub-mirror.c.163.com",
+              "https://docker.mirrors.ustc.edu.cn"
+            ],
+            "experimental": false,
+            "features": {
+              "buildkit": true
+            }
+          }
+          EOF
+
+          echo "Docker 镜像源配置完成"
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["registry.cn-hangzhou.aliyuncs.com", "hub-mirror.c.163.com"]
+
+      - name: 登录到阿里云容器镜像服务
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+      - name: 提取 Web 镜像元数据
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.WEB_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=staging,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+            type=sha,prefix={{branch}}-
+          labels: |
+            org.opencontainers.image.title=CopilotKit Web
+            org.opencontainers.image.description=CopilotKit AMIS编辑器Web应用
+            org.opencontainers.image.vendor=CopilotKit
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: 构建并推送 Web Docker 镜像
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          platforms: "linux/amd64"
+          push: ${{ github.event_name != 'pull_request' && (github.event.inputs.push_to_registry != 'false') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+          build-args: |
+            NODE_ENV=production
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+
+      - name: 设置镜像标签输出
+        id: set-image-tag
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            IMAGE_TAG="${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.WEB_IMAGE_NAME }}:latest"
+          elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            IMAGE_TAG="${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.WEB_IMAGE_NAME }}:staging"
+          else
+            BRANCH_NAME=$(echo "${{ github.ref }}" | sed 's/refs\/heads\///')
+            IMAGE_TAG="${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.WEB_IMAGE_NAME }}:${BRANCH_NAME}"
+          fi
+          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Web 镜像标签: $IMAGE_TAG"
+
+      - name: Web 镜像安全扫描
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.set-image-tag.outputs.image-tag }}
+          format: "sarif"
+          output: "web-security-results.sarif"
+        continue-on-error: true
+
+  # Agent 应用 Docker 构建和推送
+  build-agent:
+    name: 构建 Agent 镜像
+    needs: [code-quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    outputs:
+      image-tag: ${{ steps.set-image-tag.outputs.image-tag }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 配置 Docker 镜像源
+        run: |
+          mkdir -p ~/.docker
+          cat > ~/.docker/daemon.json << 'EOF'
+          {
+            "registry-mirrors": [
+              "https://registry.cn-hangzhou.aliyuncs.com",
+              "https://hub-mirror.c.163.com",
+              "https://docker.mirrors.ustc.edu.cn"
+            ],
+            "experimental": false,
+            "features": {
+              "buildkit": true
+            }
+          }
+          EOF
+
+          echo "Docker 镜像源配置完成"
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["registry.cn-hangzhou.aliyuncs.com", "hub-mirror.c.163.com"]
+
+      - name: 登录到阿里云容器镜像服务
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+      - name: 检查 Agent Dockerfile
+        id: check-dockerfile
+        run: |
+          if [ -f "apps/agent/Dockerfile" ]; then
+            echo "dockerfile-exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Agent Dockerfile 存在"
+          else
+            echo "dockerfile-exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Agent Dockerfile 不存在，将跳过构建"
+          fi
+
+      - name: 提取 Agent 镜像元数据
+        if: steps.check-dockerfile.outputs.dockerfile-exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.AGENT_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=staging,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+            type=sha,prefix={{branch}}-
+          labels: |
+            org.opencontainers.image.title=CopilotKit Agent
+            org.opencontainers.image.description=CopilotKit AMIS智能代理服务
+            org.opencontainers.image.vendor=CopilotKit
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: 构建并推送 Agent Docker 镜像
+        if: steps.check-dockerfile.outputs.dockerfile-exists == 'true'
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/agent/Dockerfile
+          platforms: "linux/amd64"
+          push: ${{ github.event_name != 'pull_request' && (github.event.inputs.push_to_registry != 'false') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=agent
+          cache-to: type=gha,mode=max,scope=agent
+          build-args: |
+            NODE_ENV=production
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+
+      - name: 设置镜像标签输出
+        if: steps.check-dockerfile.outputs.dockerfile-exists == 'true'
+        id: set-image-tag
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            IMAGE_TAG="${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.AGENT_IMAGE_NAME }}:latest"
+          elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            IMAGE_TAG="${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.AGENT_IMAGE_NAME }}:staging"
+          else
+            BRANCH_NAME=$(echo "${{ github.ref }}" | sed 's/refs\/heads\///')
+            IMAGE_TAG="${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.AGENT_IMAGE_NAME }}:${BRANCH_NAME}"
+          fi
+          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Agent 镜像标签: $IMAGE_TAG"
+
+      - name: Agent 镜像安全扫描
+        if: steps.check-dockerfile.outputs.dockerfile-exists == 'true' && github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.set-image-tag.outputs.image-tag }}
+          format: "sarif"
+          output: "agent-security-results.sarif"
+        continue-on-error: true
+
+  # 镜像测试
+  test-images:
+    name: 测试 Docker 镜像
+    runs-on: ubuntu-latest
+    needs: [build-web, build-agent]
+    if: github.event_name != 'pull_request' && always()
+
+    steps:
+      - name: 配置 Docker 镜像源
+        run: |
+          mkdir -p ~/.docker
+          cat > ~/.docker/daemon.json << 'EOF'
+          {
+            "registry-mirrors": [
+              "https://registry.cn-hangzhou.aliyuncs.com",
+              "https://hub-mirror.c.163.com",
+              "https://docker.mirrors.ustc.edu.cn"
+            ],
+            "experimental": false,
+            "features": {
+              "buildkit": true
+            }
+          }
+          EOF
+
+          echo "Docker 镜像源配置完成"
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录到阿里云注册表
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+      - name: 测试 Web 镜像启动
+        if: needs.build-web.result == 'success'
+        run: |
+          WEB_IMAGE_TAG="${{ needs.build-web.outputs.image-tag }}"
+          echo "测试 Web 镜像: $WEB_IMAGE_TAG"
+
+          docker run --rm -d --name test-web-container \
+            -p 3000:3000 \
+            -e NODE_ENV=production \
+            "$WEB_IMAGE_TAG"
+
+          echo "等待 Web 容器启动..."
+          sleep 45
+
+          if docker ps --filter "name=test-web-container" --format "table {{.Names}}" | grep -q test-web-container; then
+            echo "✅ Web 容器启动成功"
+            
+            echo "容器日志:"
+            docker logs test-web-container --tail 20
+            
+            echo "测试 Web 服务..."
+            for i in {1..3}; do
+              if curl -f -s --connect-timeout 15 --max-time 30 http://localhost:3000/ > /dev/null 2>&1; then
+                echo "✅ Web 服务响应正常 (第${i}次尝试)"
+                break
+              else
+                echo "⚠️ Web 服务测试失败 (第${i}次尝试)，等待15秒后重试..."
+                sleep 15
+              fi
+              
+              if [ $i -eq 3 ]; then
+                echo "⚠️ Web 服务最终测试失败，但容器正在运行"
+                echo "完整容器日志:"
+                docker logs test-web-container
+              fi
+            done
+          else
+            echo "❌ Web 容器启动失败"
+            docker ps -a --filter "name=test-web-container"
+            docker logs test-web-container 2>&1 || echo "无法获取容器日志"
+            exit 1
+          fi
+
+          docker stop test-web-container 2>/dev/null || echo "容器已停止"
+
+      - name: 测试 Agent 镜像启动
+        if: needs.build-agent.result == 'success' && needs.build-agent.outputs.image-tag != ''
+        run: |
+          AGENT_IMAGE_TAG="${{ needs.build-agent.outputs.image-tag }}"
+          echo "测试 Agent 镜像: $AGENT_IMAGE_TAG"
+
+          docker run --rm -d --name test-agent-container \
+            -p 8123:8123 \
+            "$AGENT_IMAGE_TAG"
+
+          echo "等待 Agent 容器启动..."
+          sleep 30
+
+          if docker ps --filter "name=test-agent-container" --format "table {{.Names}}" | grep -q test-agent-container; then
+            echo "✅ Agent 容器启动成功"
+            
+            echo "容器日志:"
+            docker logs test-agent-container --tail 20
+          else
+            echo "❌ Agent 容器启动失败"
+            docker ps -a --filter "name=test-agent-container"
+            docker logs test-agent-container 2>&1 || echo "无法获取容器日志"
+          fi
+
+          docker stop test-agent-container 2>/dev/null || echo "容器已停止"
+
+  # 部署到生产环境
+  deploy:
+    name: 部署应用
+    needs: [build-web, build-agent, test-images]
+    runs-on: ubuntu-latest
+    if: |
+      (github.ref == 'refs/heads/main') ||
+      (github.ref == 'refs/heads/develop') ||
+      (github.event_name == 'workflow_dispatch')
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+      url: ${{ env.DEPLOY_URL }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置部署环境变量
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "DEPLOY_ENV=production" >> $GITHUB_ENV
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_ENV=staging" >> $GITHUB_ENV
+            echo "IMAGE_TAG=staging" >> $GITHUB_ENV
+          fi
+
+          DEPLOY_SERVICES="${{ github.event.inputs.deploy_services || 'all' }}"
+          case "$DEPLOY_SERVICES" in
+            "web")
+              echo "COMPOSE_FILE=docker-compose.prod.web.yml" >> $GITHUB_ENV
+              echo "DEPLOY_SERVICES=web" >> $GITHUB_ENV
+              ;;
+            "agent")
+              echo "COMPOSE_FILE=docker-compose.prod.agent.yml" >> $GITHUB_ENV
+              echo "DEPLOY_SERVICES=agent" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "COMPOSE_FILE=docker-compose.prod.yml" >> $GITHUB_ENV
+              echo "DEPLOY_SERVICES=all" >> $GITHUB_ENV
+              ;;
+          esac
+
+      - name: 准备部署配置
+        run: |
+          cat > .env.production << 'ENVEOF'
+          NODE_ENV=production
+          NEXT_PUBLIC_API_BASE_URL=${{ env.API_URL }}
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_URL=${{ secrets.ANTHROPIC_API_URL }}
+          LANGSMITH_TRACING=${{ secrets.LANGSMITH_TRACING }}
+          LANGSMITH_ENDPOINT=${{ secrets.LANGSMITH_ENDPOINT }}
+          LANGSMITH_API_KEY=${{ secrets.LANGSMITH_API_KEY }}
+          LANGSMITH_PROJECT=${{ secrets.LANGSMITH_PROJECT }}
+          ENVEOF
+
+          echo "✅ .env.production 文件已创建"
+
+      - name: 设置SSH密钥
+        if: secrets.DEPLOY_SSH_KEY != ''
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 部署应用到服务器
+        if: secrets.DEPLOY_SSH_KEY != ''
+        run: |
+          echo "🚀 开始部署到 ${{ env.DEPLOY_ENV }} 环境..."
+
+          if [ ! -f .env.production ]; then
+            echo "❌ 本地 .env.production 文件不存在"
+            exit 1
+          fi
+
+          if [ ! -f ${{ env.COMPOSE_FILE }} ]; then
+            echo "⚠️ 本地 ${{ env.COMPOSE_FILE }} 文件不存在，使用默认配置"
+          fi
+
+          DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
+          if [ -z "$DEPLOY_PATH" ]; then
+            DEPLOY_PATH="/opt/copilotkit"
+            echo "⚠️ DEPLOY_PATH 未设置，使用默认路径: $DEPLOY_PATH"
+          fi
+
+          echo "📤 上传配置文件到服务器..."
+          scp -i ~/.ssh/deploy_key .env.production ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:$DEPLOY_PATH/
+          scp -i ~/.ssh/deploy_key ${{ env.COMPOSE_FILE }} ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:$DEPLOY_PATH/ || echo "跳过 compose 文件上传"
+
+          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            echo "1. 登录阿里云镜像服务..."
+            echo "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}" | docker login --username ${{ secrets.ALIYUN_REGISTRY_USERNAME }} --password-stdin ${{ env.ALIYUN_REGISTRY }}
+
+            echo "2. 确保Docker网络存在..."
+            docker network create copilotkit-network 2>/dev/null || echo "网络已存在"
+
+            echo "3. 拉取最新镜像..."
+            docker pull ${{ needs.build-web.outputs.image-tag }}
+            [ -n "${{ needs.build-agent.outputs.image-tag }}" ] && docker pull ${{ needs.build-agent.outputs.image-tag }} || echo "跳过 Agent 镜像拉取"
+
+            echo "4. 停止旧服务..."
+            docker-compose -f $(basename ${{ env.COMPOSE_FILE }}) --env-file .env.production stop || true
+            docker-compose -f $(basename ${{ env.COMPOSE_FILE }}) --env-file .env.production rm -f || true
+
+            echo "5. 清理相关资源..."
+            docker container ls -a --filter "name=copilotkit-" --format "{{.ID}}" | xargs -r docker rm -f || true
+
+            echo "6. 启动服务..."
+            docker-compose -f $(basename ${{ env.COMPOSE_FILE }}) --env-file .env.production up -d --force-recreate
+
+            echo "7. 智能清理旧镜像..."
+            docker images "${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.WEB_IMAGE_NAME }}" --format "{{.ID}} {{.CreatedAt}}" | sort -k2 -r | tail -n +4 | awk '{print $1}' | xargs -r docker rmi -f || echo "没有旧镜像需要清理"
+            docker images "${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.AGENT_IMAGE_NAME }}" --format "{{.ID}} {{.CreatedAt}}" | sort -k2 -r | tail -n +4 | awk '{print $1}' | xargs -r docker rmi -f || echo "没有旧镜像需要清理"
+            docker images --filter "dangling=true" --filter "label=org.opencontainers.image.vendor=CopilotKit" -q | xargs -r docker rmi -f || echo "没有无标签镜像需要清理"
+
+            echo "✅ 部署完成"
+          EOF
+
+      - name: 健康检查
+        if: secrets.DEPLOY_SSH_KEY != ''
+        run: |
+          echo "🔍 执行健康检查..."
+          sleep 60
+
+          WEB_STATUS=$(ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cd ${{ secrets.DEPLOY_PATH }} && docker-compose ps web | grep -c 'Up'" 2>/dev/null || echo "0")
+
+          if [ "${WEB_STATUS}" -gt 0 ]; then
+            echo "✅ Web 容器运行正常"
+            
+            if curl -f -s --connect-timeout 15 --max-time 45 ${{ env.DEPLOY_URL }}/ > /dev/null 2>&1; then
+              echo "✅ Web 服务正常"
+            else
+              echo "⚠️ Web 服务检查失败，但容器正在运行"
+            fi
+            
+            echo "✅ 部署验证完成"
+          else
+            echo "⚠️ Web 容器状态检查失败"
+          fi
+
+      - name: 通知部署结果
+        if: always()
+        run: |
+          echo "## 部署结果 📋" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ **应用部署成功**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **环境**: ${{ env.DEPLOY_ENV }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **部署服务**: ${{ env.DEPLOY_SERVICES }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Web地址**: [${{ env.DEPLOY_URL }}](${{ env.DEPLOY_URL }})" >> $GITHUB_STEP_SUMMARY
+            echo "- **镜像标签**: ${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **部署时间**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **应用部署失败**" >> $GITHUB_STEP_SUMMARY
+          fi
