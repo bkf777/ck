@@ -49,7 +49,7 @@ env:
   PNPM_VERSION: "9"
   # 阿里云容器镜像服务
   ALIYUN_REGISTRY: crpi-h9er8c2pccoo3ze4.cn-hangzhou.personal.cr.aliyuncs.com
-  ALIYUN_NAMESPACE: copilotkit
+  ALIYUN_NAMESPACE: ez_trading
   WEB_IMAGE_NAME: copilotkit-web
   AGENT_IMAGE_NAME: copilotkit-agent
   DOCKER_BUILDKIT: 1
