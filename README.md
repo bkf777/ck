@@ -25,11 +25,13 @@ This project is organized as a monorepo using [Turborepo](https://turbo.build) a
 ## Getting Started
 
 1. Install all dependencies (this installs everything for both apps):
+
 ```bash
 pnpm install
 ```
 
 2. 设置你的 Anthropic API Key（以及可选的 API URL）:
+
 ```bash
 cd apps/agent
 echo "ANTHROPIC_API_KEY=your-anthropic-api-key-here" > .env
@@ -37,6 +39,7 @@ echo "ANTHROPIC_API_URL=https://api.anthropic.com" >> .env
 ```
 
 3. Start the development servers:
+
 ```bash
 pnpm dev
 ```
@@ -71,6 +74,7 @@ pnpm dev
 ## Customization
 
 The main UI component is in `apps/web/src/app/page.tsx`. You can:
+
 - Modify the theme colors and styling
 - Add new frontend actions
 - Utilize shared-state
@@ -95,7 +99,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Troubleshooting
 
 ### Agent Connection Issues
+
 If you see "I'm having trouble connecting to my tools", make sure:
+
 1. The LangGraph agent is running on port 8000
 2. `ANTHROPIC_API_KEY`（以及需要时的 `ANTHROPIC_API_URL`）设置正确
 3. Both servers started successfully
