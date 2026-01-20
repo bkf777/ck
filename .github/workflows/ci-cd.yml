@@ -609,6 +609,9 @@ jobs:
           fi
 
           echo "📤 上传配置文件到服务器..."
+          # 在远程服务器上创建目录
+          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "mkdir -p $DEPLOY_PATH"
+
           scp -i ~/.ssh/deploy_key .env.production ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:$DEPLOY_PATH/
           scp -i ~/.ssh/deploy_key ${{ env.COMPOSE_FILE }} ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:$DEPLOY_PATH/ || echo "跳过 compose 文件上传"
 
