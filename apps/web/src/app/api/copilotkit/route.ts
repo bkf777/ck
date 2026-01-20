@@ -4,13 +4,14 @@ import {
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import { LangGraphAgent } from "@copilotkit/runtime/langgraph";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import AmisEditorPage from "@/app/amis-editor/page";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
   baseURL: process.env.ANTHROPIC_API_URL || "",
+  timeout: 120000, // SDK 请求超时（2分钟）
 });
 
 const anthropicAdapter = new AnthropicAdapter({
@@ -22,7 +23,7 @@ const runtime = new CopilotRuntime({
   agents: {
     AmisEditorPageAgent: new LangGraphAgent({
       deploymentUrl:
-        process.env.LANGGRAPH_DEPLOYMENT_URL || "http://localhost:8123",
+        process.env.LANGGRAPH_DEPLOYMENT_URL || "http://127.0.0.1:8123",
       graphId: "amisAgent",
       langsmithApiKey: process.env.LANGSMITH_API_KEY || "",
       assistantConfig: {
@@ -33,7 +34,7 @@ const runtime = new CopilotRuntime({
     }),
     starterAgent: new LangGraphAgent({
       deploymentUrl:
-        process.env.LANGGRAPH_DEPLOYMENT_URL || "http://localhost:8123",
+        process.env.LANGGRAPH_DEPLOYMENT_URL || "http://127.0.0.1:8123",
       graphId: "starterAgent",
       langsmithApiKey: process.env.LANGSMITH_API_KEY || "",
       assistantConfig: {
@@ -47,11 +48,24 @@ const runtime = new CopilotRuntime({
 
 // 3. Build a Next.js API route that handles the CopilotKit runtime requests.
 export const POST = async (req: NextRequest) => {
-  const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
-    runtime,
-    serviceAdapter: anthropicAdapter,
-    endpoint: "/api/copilotkit",
-  });
+  try {
+    const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
+      runtime,
+      serviceAdapter: anthropicAdapter,
+      endpoint: "/api/copilotkit",
+    });
 
-  return handleRequest(req);
+    return handleRequest(req);
+  } catch (error) {
+    console.error("Agent connection error:", error);
+    return NextResponse.json(
+      {
+        error: "Agent service unavailable",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 503 },
+    );
+  }
 };
+
+export const maxDuration = 120;

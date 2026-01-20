@@ -14,7 +14,7 @@ import { Task, ExecutionEvent } from "../types.js";
  */
 export async function planner_node(
   state: AmisAgentState,
-  config: RunnableConfig
+  config: RunnableConfig,
 ) {
   const userRequirement =
     state.userRequirement ||
@@ -64,7 +64,7 @@ export async function planner_node(
     const content = response.content as string;
     // 提取 ```json``` 代码块中的 JSON
     const jsonCodeBlockMatch = content.match(
-      /```json[\s\S]*?\n([\s\S]*?)\n```/
+      /```json[\s\S]*?\n([\s\S]*?)\n```/,
     );
     if (jsonCodeBlockMatch) {
       tasks = JSON.parse(jsonCodeBlockMatch[1]);
@@ -81,7 +81,7 @@ export async function planner_node(
       retryCount: 0,
     }));
   } catch (error) {
-    console.error("任务列表解析失败:", error);
+    console.error("任务列表解析失败:", error, response.content);
     // 返回默认任务列表
     const err = error as Error;
     tasks = [

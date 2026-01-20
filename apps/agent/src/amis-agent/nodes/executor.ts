@@ -125,16 +125,33 @@ ${
   try {
     const content = response.content;
     if (typeof content === "string") {
-      // 提取 ```json``` 代码块中的 JSON 对象
-      const jsonCodeBlockMatch = content.match(
-        /```json[\s\S]*?\n([\s\S]*?)\n```/,
-      );
+      // 多策略提取 JSON
+      let jsonString = content.trim();
+
+      // 策略1: 提取 ```json``` 代码块
+      const jsonCodeBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonCodeBlockMatch) {
-        result = JSON.parse(jsonCodeBlockMatch[1]);
+        jsonString = jsonCodeBlockMatch[1].trim();
       } else {
-        // 如果没有代码块，尝试直接解析
-        result = JSON.parse(content);
+        // 策略2: 提取普通代码块
+        const codeBlockMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+        if (codeBlockMatch) {
+          jsonString = codeBlockMatch[1].trim();
+        }
       }
+
+      // 尝试解析
+      try {
+        result = JSON.parse(jsonString);
+      } catch (parseError) {
+        // 如果解析失败，尝试修复常见问题
+        console.log("⚠️ [Executor] 首次解析失败，尝试修复 JSON...");
+        // 移除多余的逗号
+        jsonString = jsonString.replace(/,\s*([}\]])/g, "$1");
+        // 再次尝试解析
+        result = JSON.parse(jsonString);
+      }
+
       console.log(`✅ [Executor] 成功生成配置`);
     } else if (typeof content === "object") {
       result = content[0].text;

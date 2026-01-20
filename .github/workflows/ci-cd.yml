@@ -578,6 +578,11 @@ jobs:
           LANGSMITH_ENDPOINT=${{ secrets.LANGSMITH_ENDPOINT }}
           LANGSMITH_API_KEY=${{ secrets.LANGSMITH_API_KEY }}
           LANGSMITH_PROJECT=${{ secrets.LANGSMITH_PROJECT }}
+          ALIYUN_REGISTRY=${{ env.ALIYUN_REGISTRY }}
+          ALIYUN_NAMESPACE=${{ env.ALIYUN_NAMESPACE }}
+          WEB_IMAGE_NAME=${{ env.WEB_IMAGE_NAME }}
+          AGENT_IMAGE_NAME=${{ env.AGENT_IMAGE_NAME }}
+          IMAGE_TAG=${{ env.IMAGE_TAG }}
           ENVEOF
 
           echo "✅ .env.production 文件已创建"

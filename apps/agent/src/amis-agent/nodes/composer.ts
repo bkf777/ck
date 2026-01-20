@@ -10,7 +10,7 @@ import { ExecutionEvent } from "../types.js";
  */
 export async function composer_node(
   state: AmisAgentState,
-  config: RunnableConfig
+  config: RunnableConfig,
 ) {
   console.log("\n🎼 [Composer] 开始综合结果...");
 
@@ -59,17 +59,38 @@ ${JSON.stringify(taskResults, null, 2)}
     try {
       const content = response.content as string;
       console.log(typeof content);
-      // 提取 ```json``` 代码块中的 JSON 对象
-      const jsonCodeBlockMatch = content.match(
-        /```json[\s\S]*?\n([\s\S]*?)\n```/
-      );
-      let finalJson;
+
+      // 提取 JSON 内容的多种策略
+      let jsonString = content;
+
+      // 策略 1: 提取 ```json``` 代码块
+      const jsonCodeBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonCodeBlockMatch) {
-        finalJson = JSON.parse(jsonCodeBlockMatch[1]);
+        jsonString = jsonCodeBlockMatch[1].trim();
       } else {
-        // 如果没有代码块，尝试直接解析
-        finalJson = JSON.parse(content);
+        // 策略 2: 提取普通代码块
+        const codeBlockMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+        if (codeBlockMatch) {
+          jsonString = codeBlockMatch[1].trim();
+        }
       }
+
+      // 清理可能的前后空白和注释
+      jsonString = jsonString.trim();
+
+      // 尝试解析 JSON
+      let finalJson;
+      try {
+        finalJson = JSON.parse(jsonString);
+      } catch (parseError) {
+        // 如果解析失败，尝试修复常见问题
+        console.log("⚠️ [Composer] 首次解析失败，尝试修复 JSON...");
+        // 移除多余的逗号
+        jsonString = jsonString.replace(/,\s*([}\]])/g, "$1");
+        // 再次尝试解析
+        finalJson = JSON.parse(jsonString);
+      }
+
       console.log("✅ [Composer] 综合完成");
       console.log(JSON.stringify(finalJson, null, 2));
 

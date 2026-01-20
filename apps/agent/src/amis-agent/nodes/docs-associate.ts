@@ -11,7 +11,7 @@ import { getAllDocFiles, isAmisRelated } from "../utils.js";
  */
 export async function docs_associate_node(
   state: AmisAgentState,
-  config: RunnableConfig
+  config: RunnableConfig,
 ) {
   const tasks = state.tasks || [];
 
@@ -22,7 +22,7 @@ export async function docs_associate_node(
   }
 
   console.log(
-    `\n📚 [DocsAssociate] 开始为 ${tasks.length} 个任务批量检索文档...`
+    `\n📚 [DocsAssociate] 开始为 ${tasks.length} 个任务批量检索文档...`,
   );
 
   try {
@@ -74,11 +74,29 @@ ${allDocs.join("\n")}
           let selectedPaths: string[] = [];
           const content = response.content as string;
 
-          const jsonMatch = content.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            selectedPaths = JSON.parse(jsonMatch[0]);
+          // 多策略提取 JSON 数组
+          let jsonString = content.trim();
+
+          // 策略1: 提取代码块中的内容
+          const codeBlockMatch = content.match(
+            /```(?:json)?\s*(\[[\s\S]*?\])\s*```/,
+          );
+          if (codeBlockMatch) {
+            jsonString = codeBlockMatch[1].trim();
           } else {
-            selectedPaths = JSON.parse(content);
+            // 策略2: 提取方括号内容
+            const jsonMatch = content.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              jsonString = jsonMatch[0];
+            }
+          }
+
+          try {
+            selectedPaths = JSON.parse(jsonString);
+          } catch (parseError) {
+            // 如果解析失败，尝试清理后再解析
+            jsonString = jsonString.replace(/,\s*\]/g, "]"); // 移除尾部多余逗号
+            selectedPaths = JSON.parse(jsonString);
           }
 
           if (!Array.isArray(selectedPaths)) {
@@ -99,13 +117,13 @@ ${allDocs.join("\n")}
           console.error(`文档检索失败 for task ${task.id}:`, e);
           return task;
         }
-      })
+      }),
     );
 
     // 统计检索结果
     const totalDocs = updatedTasks.reduce(
       (sum, task) => sum + (task.docPaths?.length || 0),
-      0
+      0,
     );
 
     const event: ExecutionEvent = {
