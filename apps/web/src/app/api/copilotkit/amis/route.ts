@@ -19,11 +19,18 @@ const anthropicAdapter = new AnthropicAdapter({
   model: "glm-4.7",
 });
 
+const deploymentUrl =
+  process.env.LANGGRAPH_DEPLOYMENT_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "http://agent:8123"
+    : "http://localhost:8123");
+
+console.log(`[CopilotKit] Initializing AmisEditorPageAgent with deploymentUrl: ${deploymentUrl}`);
+
 const runtime = new CopilotRuntime({
   agents: {
     AmisEditorPageAgent: new LangGraphAgent({
-      deploymentUrl:
-        process.env.LANGGRAPH_DEPLOYMENT_URL || "http://localhost:8123",
+      deploymentUrl,
       graphId: "amisAgent",
       langsmithApiKey: process.env.LANGSMITH_API_KEY || "",
       assistantConfig: {
@@ -46,7 +53,7 @@ export const POST = async (req: NextRequest) => {
 
     return handleRequest(req);
   } catch (error) {
-    console.error("Agent connection error:", error);
+    console.error(`Agent connection error (deploymentUrl: ${deploymentUrl}):`, error);
     return NextResponse.json(
       {
         error: "Agent service unavailable",
