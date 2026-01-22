@@ -78,11 +78,18 @@ ${failedTasks
 请生成任务列表（JSON 数组格式）：`;
 
   // 调用 LLM
-  const response = await model.invoke([
-    new SystemMessage({ content: "你是 amis 配置任务规划专家" }),
-    new HumanMessage({ content: prompt }),
-  ]);
-
+  
+  let response;
+  try {
+     response = await model.invoke([
+      new SystemMessage({ content: "你是一个 amis 页面设计专家，负责将用户需求拆解为具体的实施任务。" }),
+      new HumanMessage({ content: prompt }),
+    ]);
+  } catch (e) {
+      console.error("FATAL: Planner LLM call failed. The agent might be misconfigured or the model service is down.", e);
+      // Return a dummy error message to avoid immediate crash, but let it fail gracefully
+      response = { content: JSON.stringify([{ id: "error", description: "Agent connection failed: " + (e.message || "Unknown error"), type: "general", status: "failed" }]) };
+  }
   // 解析响应
   let tasks: Task[] = [];
   try {

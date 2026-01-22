@@ -141,10 +141,22 @@ ${state.contextDocuments && state.contextDocuments.length > 0
 请生成 amis JSON 配置：`;
 
   // 调用 LLM
-  const response = await modelWithTools.invoke(
-    [new HumanMessage({ content: prompt })],
-    config,
-  );
+  
+  let response;
+  try {
+    response = await modelWithTools.invoke(
+      [new HumanMessage({ content: prompt })],
+      config,
+    );
+  } catch (e) {
+    console.error("FATAL: Executor Node LLM invoke failed", e);
+    // Return a failed task result immediately to avoid crash
+    return {
+        tasks: tasks.map((t, i) => i === currentIndex ? { ...t, status: 'failed', errorMessage: "Agent network error: " + e.message } : t),
+        currentTaskIndex: currentIndex + 1,
+    };
+  }
+  
 
   let result: any = null;
   let errorMessage: string | undefined;
