@@ -10,6 +10,47 @@ import {
 import { convertActionsToDynamicStructuredTools } from "@copilotkit/sdk-js/langgraph";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
+import { parseJsonFromMarkdown } from "../utils.js";
+
+/**
+ * 简化 Schema，只保留关键结构字段，减少 Token 消耗
+ */
+function getLightweightSchema(schema: any): any {
+  if (Array.isArray(schema)) {
+    return schema.map(getLightweightSchema);
+  }
+  if (typeof schema === "object" && schema !== null) {
+    // 保留关键识别字段
+    const keepFields = ["type", "name", "id", "title", "label", "actionType"];
+    const result: any = {};
+    keepFields.forEach((key) => {
+      if (schema[key]) result[key] = schema[key];
+    });
+
+    // 递归处理 body/items 等容器字段，但只保留结构概览
+    if (schema.body) {
+      result.body = Array.isArray(schema.body)
+        ? schema.body.map(getLightweightSchema)
+        : getLightweightSchema(schema.body);
+    }
+    if (schema.items) {
+      result.items = Array.isArray(schema.items)
+        ? schema.items.map(getLightweightSchema)
+        : getLightweightSchema(schema.items);
+    }
+    // 处理 tabs 等特殊容器
+    if (schema.tabs && Array.isArray(schema.tabs)) {
+      result.tabs = schema.tabs.map(getLightweightSchema);
+    }
+
+    // 如果没有任何关键字段，且不是容器，返回简略类型
+    if (Object.keys(result).length === 0) {
+      return { type: schema.type || "unknown" };
+    }
+    return result;
+  }
+  return schema;
+}
 
 /**
  * 2. 任务执行节点 (Executor Node)
@@ -37,9 +78,7 @@ export async function executor_node(
   const task = tasks[currentIndex];
 
   console.log(
-    `\n⚙️ [Executor] 执行任务 ${currentIndex + 1}/${tasks.length}: ${
-      task.description
-    }`,
+    `\n⚙️ [Executor] 执行任务 ${currentIndex + 1}/${tasks.length}: ${task.description}`,
   );
 
   // 更新任务状态
@@ -60,6 +99,9 @@ export async function executor_node(
     ...convertActionsToDynamicStructuredTools(state.copilotkit?.actions ?? []),
   ]);
 
+  // 对已有结果进行精简，避免 Context 过大
+  const simplifiedResults = existingResults.map(getLightweightSchema);
+
   // 构建提示词
   const prompt = `你是 amis 配置生成专家。请根据任务描述生成符合规范的 amis JSON 配置。
 
@@ -68,17 +110,14 @@ export async function executor_node(
 
 用户整体需求：${state.userRequirement}
 
-${
-  existingResults.length > 0
-    ? `已生成的组件：
-${JSON.stringify(existingResults, null, 2)}
+${simplifiedResults.length > 0
+    ? `已生成的组件（摘要）：
+${JSON.stringify(simplifiedResults, null, 2)}
 
 请确保新组件与已有组件能够正确组合。`
-    : ""
-}
+    : ""}
 
-${
-  state.contextDocuments && state.contextDocuments.length > 0
+${state.contextDocuments && state.contextDocuments.length > 0
     ? `以下是与本任务相关的文档摘录（供参考）：\n${state.contextDocuments
         .slice(0, 3)
         .map(
@@ -90,8 +129,7 @@ ${
               .join("\n")}`,
         )
         .join("\n\n")}\n请遵循文档规范进行配置。`
-    : ""
-}
+    : ""}
 
 要求：
 1. 只返回 JSON 对象，不要有其他内容
@@ -125,36 +163,10 @@ ${
   try {
     const content = response.content;
     if (typeof content === "string") {
-      // 多策略提取 JSON
-      let jsonString = content.trim();
-
-      // 策略1: 提取 ```json``` 代码块
-      const jsonCodeBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
-      if (jsonCodeBlockMatch) {
-        jsonString = jsonCodeBlockMatch[1].trim();
-      } else {
-        // 策略2: 提取普通代码块
-        const codeBlockMatch = content.match(/```\s*([\s\S]*?)\s*```/);
-        if (codeBlockMatch) {
-          jsonString = codeBlockMatch[1].trim();
-        }
-      }
-
-      // 尝试解析
-      try {
-        result = JSON.parse(jsonString);
-      } catch (parseError) {
-        // 如果解析失败，尝试修复常见问题
-        console.log("⚠️ [Executor] 首次解析失败，尝试修复 JSON...");
-        // 移除多余的逗号
-        jsonString = jsonString.replace(/,\s*([}\]])/g, "$1");
-        // 再次尝试解析
-        result = JSON.parse(jsonString);
-      }
-
+      result = parseJsonFromMarkdown(content);
       console.log(`✅ [Executor] 成功生成配置`);
     } else if (typeof content === "object") {
-      result = content[0].text;
+      result = (content as any)[0].text;
     }
 
     // 更新任务状态

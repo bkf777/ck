@@ -20,7 +20,15 @@ export async function planner_node(
     state.userRequirement ||
     (state.messages[state.messages.length - 1] as HumanMessage).content;
 
-  console.log(`\n📋 [Planner] 分析用户需求: ${userRequirement}`);
+  // 检查是否有失败的任务导致的回退
+  const failedTasks = (state.tasks || []).filter((t) => t.status === "failed");
+  const isRetry = failedTasks.length > 0;
+
+  console.log(
+    `\n📋 [Planner] 分析用户需求: ${userRequirement} ${
+      isRetry ? `(重试模式: ${failedTasks.length} 个任务失败)` : ""
+    }`,
+  );
 
   // 定义模型
   const model = new ChatAnthropic({
@@ -31,9 +39,26 @@ export async function planner_node(
   });
 
   // 构建提示词
-  const prompt = `你是一个 amis 配置任务规划专家。请分析用户需求，将其拆分为可执行的子任务。
+  let prompt = `你是一个 amis 配置任务规划专家。请分析用户需求，将其拆分为可执行的子任务。
 
-用户需求：${userRequirement}
+用户需求：${userRequirement}`;
+
+  if (isRetry) {
+    prompt += `
+
+🚨 注意：之前的任务执行失败了，请根据错误信息调整规划。
+失败的任务：
+${failedTasks
+  .map((t) => `- 任务: ${t.description}\n  错误: ${t.errorMessage}`)
+  .join("\n")}
+
+请重新生成任务列表，尝试：
+1. 将失败的复杂任务拆分为更简单的子任务
+2. 修改任务描述，提供更明确的指导
+3. 确保任务顺序逻辑正确`;
+  }
+
+  prompt += `
 
 请生成任务列表，每个任务包含：
 - id: 任务唯一标识（如 task-1, task-2）

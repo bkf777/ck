@@ -86,3 +86,54 @@ export function extractSummaryFromContent(content: string): string {
 
   return summary.join("\n").trim().slice(0, 200);
 }
+
+/**
+ * 从包含 Markdown 的字符串中提取并解析 JSON
+ */
+export function parseJsonFromMarkdown(content: string): any {
+  if (!content) return null;
+
+  let jsonString = content.trim();
+
+  // 策略 1: 提取 ```json ... ``` 或 ``` ... ``` 块
+  const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (codeBlockMatch) {
+    jsonString = codeBlockMatch[1].trim();
+  } else {
+    // 策略 2: 寻找第一个 { 或 [ 到最后一个 } 或 ] 之间的内容
+    const firstBrace = content.indexOf("{");
+    const firstBracket = content.indexOf("[");
+    const start =
+      firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)
+        ? firstBrace
+        : firstBracket;
+
+    const lastBrace = content.lastIndexOf("}");
+    const lastBracket = content.lastIndexOf("]");
+    const end = lastBrace > lastBracket ? lastBrace : lastBracket;
+
+    if (start !== -1 && end !== -1 && end > start) {
+      jsonString = content.substring(start, end + 1);
+    }
+  }
+
+  // 清理常见的非法字符（如某些模型可能带出的零宽字符或注释）
+  jsonString = jsonString
+    .replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "") // 移除注释
+    .trim();
+
+  try {
+    return JSON.parse(jsonString);
+  } catch (e) {
+    // 策略 3: 尝试修复常见 JSON 错误（如尾部逗号）并再次解析
+    try {
+      const fixedJson = jsonString
+        .replace(/,\s*([}\]])/g, "$1") // 移除尾部逗号
+        .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":'); // 确保键名有双引号
+      return JSON.parse(fixedJson);
+    } catch (innerE) {
+      console.error("JSON 提取解析失败。原始内容:", content);
+      throw innerE;
+    }
+  }
+}

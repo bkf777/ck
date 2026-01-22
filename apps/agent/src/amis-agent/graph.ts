@@ -22,8 +22,10 @@ function route_start(state: AmisAgentState): string {
   const lastMessage = messages[messages.length - 1];
   // 如果最后一条消息是 ToolMessage，说明是工具执行返回，直接进入执行节点处理结果
   if (lastMessage && lastMessage.getType() === "tool") {
+    console.log("🔀 [Route] 检测到工具输出，跳转 -> executor");
     return "executor";
   }
+  console.log("🔀 [Route] 初始启动，跳转 -> planner");
   return "planner";
 }
 
@@ -36,7 +38,10 @@ function shouldContinue(state: AmisAgentState): string {
   const tasks = state.tasks || [];
 
   // 若需要回到规划阶段（例如需求变化或失败后重规划）
-  if (state.needsReplan) return "planner";
+  if (state.needsReplan) {
+    console.log("🔀 [Route] 需要重新规划，跳转 -> planner");
+    return "planner";
+  }
 
   // 如果上一个已执行任务失败，则回到规划节点复盘/重拆
   const lastIndex = currentIndex - 1;
@@ -46,6 +51,9 @@ function shouldContinue(state: AmisAgentState): string {
     state.tasks[lastIndex] &&
     state.tasks[lastIndex].status === "failed"
   ) {
+    console.log(
+      `🔀 [Route] 任务 ${state.tasks[lastIndex].id} 失败，跳转 -> planner 进行修复`,
+    );
     return "planner";
   }
 
@@ -60,30 +68,40 @@ function shouldContinue(state: AmisAgentState): string {
       const toolCallName = toolCall.name;
 
       if (!actions || actions.every((action) => action.name !== toolCallName)) {
+        console.log(`🔀 [Route] 调用工具 ${toolCallName}，跳转 -> tool_node`);
         return "tool_node";
       }
       // 如果是 CopilotKit action，返回 END 让客户端处理
+      console.log(
+        `🔀 [Route] 触发 CopilotKit 动作 ${toolCallName}，跳转 -> END`,
+      );
       return END;
     }
   }
 
   // 检查是否有需要重试的任务
   if (state.tasksToRetry && state.tasksToRetry.length > 0) {
+    console.log("🔀 [Route] 有任务需要重试，跳转 -> executor");
     return "executor";
   }
 
   // 所有任务完成，进入综合阶段
   if (currentIndex >= totalTasks) {
+    console.log("🔀 [Route] 所有任务已完成，跳转 -> composer");
     return "composer";
   }
 
   // 检查是否需要执行文档关联（只在第一次或文档未关联时执行）
   // 如果第一个任务还没有 docHints，说明还没有执行过文档关联
   if (tasks.length > 0 && !tasks[0].docHints) {
+    console.log("🔀 [Route] 首次执行，需要关联文档，跳转 -> docs_associate");
     return "docs_associate";
   }
 
   // 准备当前任务的上下文文档
+  console.log(
+    `🔀 [Route] 准备执行任务 ${currentIndex + 1}/${totalTasks}，跳转 -> context`,
+  );
   return "context";
 }
 

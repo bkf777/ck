@@ -115,7 +115,7 @@ ${allDocs.join("\n")}
           };
         } catch (e) {
           console.error(`文档检索失败 for task ${task.id}:`, e);
-          return task;
+          return { ...task, docPaths: task.docPaths || [], docHints: [] };
         }
       }),
     );
