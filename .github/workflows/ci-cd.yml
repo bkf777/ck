@@ -63,9 +63,6 @@ jobs:
     name: 代码质量检查
     runs-on: ubuntu-latest
 
-    outputs:
-      cache-hit: ${{ steps.cache.outputs.cache-hit }}
-
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -83,22 +80,19 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
 
-      - name: 缓存依赖
-        id: cache
+      - name: Turbo Cache
         uses: actions/cache@v3
         with:
-          path: |
-            ~/.pnpm-store
-            **/node_modules
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          path: node_modules/.cache/turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-
+            turbo-${{ runner.os }}-
 
       - name: 安装依赖
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: ESLint 代码检查
-        run: pnpm run lint
+        run: pnpm lint
         continue-on-error: true
 
       - name: TypeScript 类型检查
@@ -134,19 +128,19 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
 
+      - name: Turbo Cache
+        uses: actions/cache@v3
+        with:
+          path: node_modules/.cache/turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
       - name: 安装依赖
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: 构建项目
-        run: |
-          echo "构建 Web 应用..."
-          cd apps/web
-          pnpm run build
-          cd ../..
-
-          echo "构建 Agent 应用..."
-          cd apps/agent
-          pnpm run build || echo "Agent 构建脚本不存在，跳过"
+      - name: 构建项目 (Turbo)
+        run: pnpm build
 
   # 单元测试（预留）
   unit-tests:
@@ -170,8 +164,16 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
 
+      - name: Turbo Cache
+        uses: actions/cache@v3
+        with:
+          path: node_modules/.cache/turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
       - name: 安装依赖
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: 运行测试
         run: pnpm test -- --coverage
@@ -574,6 +576,7 @@ jobs:
           NEXT_PUBLIC_API_BASE_URL=${{ env.API_URL }}
           ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_API_URL=${{ secrets.ANTHROPIC_API_URL }}
+          ANTHROPIC_MODEL=${{ secrets.ANTHROPIC_MODEL }}
           LANGSMITH_TRACING=${{ secrets.LANGSMITH_TRACING }}
           LANGSMITH_ENDPOINT=${{ secrets.LANGSMITH_ENDPOINT }}
           LANGSMITH_API_KEY=${{ secrets.LANGSMITH_API_KEY }}
