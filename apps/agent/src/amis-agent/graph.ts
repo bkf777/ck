@@ -133,6 +133,7 @@ const workflow = new StateGraph(AgentStateAnnotation)
   .addNode("context", context_node)
   .addNode("executor", executor_node)
   .addNode("tool_node", new ToolNode(tools))
+  .addNode("copilot_action_node", copilot_action_node)
   .addNode("composer", composer_node)
 
   // 添加边
