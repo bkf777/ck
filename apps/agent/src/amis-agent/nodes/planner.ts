@@ -5,6 +5,7 @@ import {
   SystemMessage,
 } from "@langchain/core/messages";
 import { ChatAnthropic } from "@langchain/anthropic";
+import { createChatModel } from "../../utils/model-factory.js";
 import { AmisAgentState } from "../state.js";
 import { Task, ExecutionEvent } from "../types.js";
 
@@ -25,17 +26,14 @@ export async function planner_node(
   const isRetry = failedTasks.length > 0;
 
   console.log(
-    `\n📋 [Planner] 分析用户需求: ${userRequirement} ${
+    `\n📋 [Planner] 分析用户需求: ${
       isRetry ? `(重试模式: ${failedTasks.length} 个任务失败)` : ""
     }`,
   );
 
   // 定义模型
-  const model = new ChatAnthropic({
+  const model = createChatModel({
     temperature: 0.3,
-    model: process.env.ANTHROPIC_MODEL || "glm-4.7",
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
-    anthropicApiUrl: process.env.ANTHROPIC_API_URL || "",
   });
 
   // 构建提示词
@@ -78,17 +76,34 @@ ${failedTasks
 请生成任务列表（JSON 数组格式）：`;
 
   // 调用 LLM
-  
+
   let response;
   try {
-     response = await model.invoke([
-      new SystemMessage({ content: "你是一个 amis 页面设计专家，负责将用户需求拆解为具体的实施任务。" }),
+    response = await model.invoke([
+      new SystemMessage({
+        content:
+          "你是一个 amis 页面设计专家，负责将用户需求拆解为具体的实施任务。",
+      }),
       new HumanMessage({ content: prompt }),
     ]);
   } catch (e) {
-      console.error("FATAL: Planner LLM call failed. The agent might be misconfigured or the model service is down.", e);
-      // Return a dummy error message to avoid immediate crash, but let it fail gracefully
-      response = { content: JSON.stringify([{ id: "error", description: "Agent connection failed: " + (e.message || "Unknown error"), type: "general", status: "failed" }]) };
+    console.error(
+      "FATAL: Planner LLM call failed. The agent might be misconfigured or the model service is down.",
+      e,
+    );
+    // Return a dummy error message to avoid immediate crash, but let it fail gracefully
+    response = {
+      content: JSON.stringify([
+        {
+          id: "error",
+          description:
+            "Agent connection failed: " +
+            ((e as any).message || "Unknown error"),
+          type: "general",
+          status: "failed",
+        },
+      ]),
+    };
   }
   // 解析响应
   let tasks: Task[] = [];

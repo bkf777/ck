@@ -49,6 +49,7 @@ async function main() {
   // 步骤 3: 执行工作流（一次迭代作为演示）
   try {
     const result = await graph.invoke(initialState, {
+      recursionLimit: 50,
       configurable: { thread_id: "quick-start" },
     });
 

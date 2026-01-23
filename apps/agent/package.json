@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "npx @langchain/langgraph-cli dev --port 8123 --no-browser",
     "test:smoke": "tsx --env-file ../../.env src/smoke-test.ts",
+    "test:nodes": "tsx --env-file ../../.env src/amis-agent/test-nodes.ts",
     "quick-start": "tsx src/quick-start.ts"
   },
   "keywords": [],

@@ -697,7 +697,7 @@ async function runSmokeTest() {
       while (retryCount < maxRetries) {
         try {
           result = await graph.invoke(state, {
-            recursionLimit: 200,
+            recursionLimit: 50,
             configurable: { thread_id: "test-thread" },
           });
           break; // 成功则跳出重试循环

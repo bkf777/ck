@@ -1,5 +1,6 @@
 import { RunnableConfig } from "@langchain/core/runnables";
 import { ChatAnthropic } from "@langchain/anthropic";
+import { createChatModel } from "../../utils/model-factory.js";
 import { Command } from "@langchain/langgraph";
 import {
   AIMessage,
@@ -85,12 +86,11 @@ export async function executor_node(
   tasks[currentIndex].status = "in_progress";
 
   // 定义模型
-  const model = new ChatAnthropic({
+  const model = createChatModel({
     temperature: 0.3,
-    model: process.env.ANTHROPIC_MODEL || "glm-4.7",
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
-    anthropicApiUrl: process.env.ANTHROPIC_API_URL || "",
   });
+
+  console.log(state.copilotkit?.actions);
 
   // 绑定工具
   // 移除 ...tools 以防止 Executor 调用检索工具导致递归深度过大
@@ -110,14 +110,17 @@ export async function executor_node(
 
 用户整体需求：${state.userRequirement}
 
-${simplifiedResults.length > 0
+${
+  simplifiedResults.length > 0
     ? `已生成的组件（摘要）：
 ${JSON.stringify(simplifiedResults, null, 2)}
 
 请确保新组件与已有组件能够正确组合。`
-    : ""}
+    : ""
+}
 
-${state.contextDocuments && state.contextDocuments.length > 0
+${
+  state.contextDocuments && state.contextDocuments.length > 0
     ? `以下是与本任务相关的文档摘录（供参考）：\n${state.contextDocuments
         .slice(0, 3)
         .map(
@@ -129,7 +132,8 @@ ${state.contextDocuments && state.contextDocuments.length > 0
               .join("\n")}`,
         )
         .join("\n\n")}\n请遵循文档规范进行配置。`
-    : ""}
+    : ""
+}
 
 要求：
 1. 只返回 JSON 对象，不要有其他内容
@@ -141,7 +145,6 @@ ${state.contextDocuments && state.contextDocuments.length > 0
 请生成 amis JSON 配置：`;
 
   // 调用 LLM
-  
   let response;
   try {
     response = await modelWithTools.invoke(
@@ -150,87 +153,44 @@ ${state.contextDocuments && state.contextDocuments.length > 0
     );
   } catch (e) {
     console.error("FATAL: Executor Node LLM invoke failed", e);
-    // Return a failed task result immediately to avoid crash
     return {
-        tasks: tasks.map((t, i) => i === currentIndex ? { ...t, status: 'failed', errorMessage: "Agent network error: " + e.message } : t),
-        currentTaskIndex: currentIndex + 1,
-    };
-  }
-  
-
-  let result: any = null;
-  let errorMessage: string | undefined;
-
-  // 检查是否有工具调用（CopilotKit 前端动作）
-  if (response.tool_calls && response.tool_calls.length > 0) {
-    console.log(`📚 [Executor] 触发前端动作: ${response.tool_calls[0].name}`);
-    return {
-      tasks,
-      currentTaskIndex: currentIndex,
-      messages: [...(state.messages || []), response as AIMessage],
+      tasks: tasks.map((t, i) =>
+        i === currentIndex
+          ? {
+              ...t,
+              status: "failed",
+              errorMessage: "Agent network error: " + (e as Error).message,
+            }
+          : t,
+      ),
     };
   }
 
-  // 解析响应内容
-  try {
-    const content = response.content;
-    if (typeof content === "string") {
-      result = parseJsonFromMarkdown(content);
-      console.log(`✅ [Executor] 成功生成配置`);
-    } else if (typeof content === "object") {
-      result = (content as any)[0].text;
-    }
-
-    // 更新任务状态
-    tasks[currentIndex].status = "completed";
-    tasks[currentIndex].result = result;
-  } catch (error) {
-    const err = error as Error;
-    errorMessage = `JSON 解析失败: ${err.message}`;
-    console.error(`❌ [Executor] ${errorMessage} ${JSON.stringify(response)}`);
-
-    tasks[currentIndex].status = "failed";
-    tasks[currentIndex].errorMessage = errorMessage;
-    tasks[currentIndex].retryCount = (tasks[currentIndex].retryCount || 0) + 1;
+  // 获取原始响应内容并保存
+  const content = response.content;
+  let rawResult = "";
+  if (typeof content === "string") {
+    rawResult = content;
+  } else if (Array.isArray(content) && content[0]?.text) {
+    rawResult = content[0].text;
   }
 
-  // 添加执行日志
+  tasks[currentIndex].rawResult = rawResult;
+  tasks[currentIndex].status = "in_progress";
+
+  console.log(`📡 [Executor] 任务 ${task.id} 生成原始配置完成，进入验证阶段`);
+
   const event: ExecutionEvent = {
-    type: errorMessage ? "error" : "task_complete",
+    type: "generation_progress",
     timestamp: new Date().toISOString(),
     taskId: task.id,
-    message: errorMessage || `任务 ${task.id} 完成`,
-    data: result,
+    message: `任务 ${task.id} 已生成原始配置，准备验证...`,
   };
-
-  // 生成临时 schema 用于前端展示进度
-  const currentResults = tasks
-    .filter((t) => t.status === "completed" && t.result)
-    .map((t) => t.result);
-
-  const tempSchema = {
-    type: "page",
-    body: currentResults,
-  };
-
-  const updateSchemaCall = new AIMessage({
-    content: "更新页面 schema",
-    tool_calls: [
-      {
-        id: `call_${Date.now()}_update_schema`,
-        name: "updateAmisSchema",
-        args: { schema: tempSchema },
-      },
-    ],
-  });
 
   return {
-    currentTaskIndex: currentIndex + 1,
     tasks,
-    schema: tempSchema,
     executionLog: [...(state.executionLog || []), event],
-    // 本轮用过的上下文清空，交给下个任务的 context 节点重新准备
+    // 本轮用过的上下文清空
     contextDocuments: [],
-    messages: [...(state.messages || []), updateSchemaCall],
   };
 }

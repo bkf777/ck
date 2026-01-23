@@ -11,6 +11,7 @@ import { AIMessage, SystemMessage } from "@langchain/core/messages";
 import { MemorySaver, START, StateGraph } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatAnthropic } from "@langchain/anthropic";
+import { createChatModel } from "./utils/model-factory.js";
 import {
   convertActionsToDynamicStructuredTools,
   CopilotKitStateAnnotation,
@@ -47,10 +48,8 @@ const tools = [getWeather];
 // 5. Define the chat node, which will handle the chat logic
 async function chat_node(state: AgentState, config: RunnableConfig) {
   // 5.1 Define the model, lower temperature for deterministic responses
-  const model = new ChatAnthropic({
+  const model = createChatModel({
     temperature: 0,
-    model: process.env.ANTHROPIC_MODEL || "glm-4.7",
-    apiKey: process.env.ANTHROPIC_API_KEY,
   });
 
   // 5.2 Bind the tools to the model, include CopilotKit actions. This allows
@@ -118,4 +117,4 @@ const memory = new MemorySaver();
 
 export const graph = workflow.compile({
   checkpointer: memory,
-});
+}).withConfig({ recursionLimit: 50 });

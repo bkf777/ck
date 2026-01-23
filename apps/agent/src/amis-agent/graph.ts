@@ -1,6 +1,6 @@
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { MemorySaver, START, StateGraph, END } from "@langchain/langgraph";
-import { AIMessage } from "@langchain/core/messages";
+import { AIMessage, ToolMessage } from "@langchain/core/messages";
 
 import { AgentStateAnnotation, AmisAgentState } from "./state.js";
 import { tools } from "./tools.js";
@@ -8,11 +8,40 @@ import { planner_node } from "./nodes/planner.js";
 import { docs_associate_node } from "./nodes/docs-associate.js";
 import { context_node } from "./nodes/context.js";
 import { executor_node } from "./nodes/executor.js";
+import { validator_node } from "./nodes/validator.js";
+import { fixer_node } from "./nodes/fixer.js";
 import { composer_node } from "./nodes/composer.js";
 
 // ============================================================
 // 路由逻辑
 // ============================================================
+
+/**
+ * 验证后的路由逻辑
+ */
+function route_after_validation(state: AmisAgentState): string {
+  const currentIndex = state.currentTaskIndex || 0;
+  const tasks = state.tasks || [];
+  
+  if (currentIndex < tasks.length) {
+    const currentTask = tasks[currentIndex];
+    
+    // 如果 JSON 解析错误，进入修复节点
+    if (currentTask.status === "json_error") {
+      console.log(`🔀 [Route] 任务 ${currentTask.id} JSON 解析错误，跳转 -> fixer`);
+      return "fixer";
+    }
+    
+    // 如果由于某种原因验证节点将其标记为失败（非 JSON 错误），回退到规划节点
+    if (currentTask.status === "failed") {
+      console.log(`🔀 [Route] 任务 ${currentTask.id} 验证失败，跳转 -> planner`);
+      return "planner";
+    }
+  }
+
+  // 验证通过（已在 validator 中推进 currentIndex）或所有任务已处理
+  return shouldContinue(state);
+}
 
 /**
  * 判断启动路由
@@ -55,28 +84,6 @@ function shouldContinue(state: AmisAgentState): string {
       `🔀 [Route] 任务 ${state.tasks[lastIndex].id} 失败，跳转 -> planner 进行修复`,
     );
     return "planner";
-  }
-
-  // 检查最后一条消息是否有工具调用
-  const lastMessage = state.messages[state.messages.length - 1] as AIMessage;
-  if (lastMessage?.tool_calls?.length) {
-    const toolCall = lastMessage.tool_calls[0];
-    // 验证工具调用对象有必需的 id 和 name 字段
-    if (toolCall?.id && toolCall?.name) {
-      // 检查是否是 CopilotKit action（不需要路由到 tool_node）
-      const actions = state.copilotkit?.actions;
-      const toolCallName = toolCall.name;
-
-      if (!actions || actions.every((action) => action.name !== toolCallName)) {
-        console.log(`🔀 [Route] 调用工具 ${toolCallName}，跳转 -> tool_node`);
-        return "tool_node";
-      }
-      // 如果是 CopilotKit action，返回 END 让客户端处理
-      console.log(
-        `🔀 [Route] 触发 CopilotKit 动作 ${toolCallName}，跳转 -> END`,
-      );
-      return END;
-    }
   }
 
   // 检查是否有需要重试的任务
@@ -132,8 +139,8 @@ const workflow = new StateGraph(AgentStateAnnotation)
   // 上下文注入节点：为当前任务准备具体的文档内容
   .addNode("context", context_node)
   .addNode("executor", executor_node)
-  .addNode("tool_node", new ToolNode(tools))
-  .addNode("copilot_action_node", copilot_action_node)
+  .addNode("validator", validator_node)
+  .addNode("fixer", fixer_node)
   .addNode("composer", composer_node)
 
   // 添加边
@@ -144,16 +151,17 @@ const workflow = new StateGraph(AgentStateAnnotation)
   .addEdge("planner", "docs_associate")
   .addEdge("docs_associate", "context")
   .addEdge("context", "executor")
-  .addEdge("tool_node", "executor")
+  .addEdge("executor", "validator")
+  .addEdge("fixer", "validator")
 
-  // 条件边：判断是否继续执行
-  .addConditionalEdges("executor", shouldContinue, {
+  // 条件边：验证后的跳转逻辑
+  .addConditionalEdges("validator", route_after_validation, {
     planner: "planner",
     context: "context",
     executor: "executor",
-    tool_node: "tool_node",
     composer: "composer",
     docs_associate: "docs_associate",
+    fixer: "fixer",
     [END]: END,
   })
 
@@ -163,4 +171,4 @@ const workflow = new StateGraph(AgentStateAnnotation)
 const memory = new MemorySaver();
 export const graph = workflow.compile({
   checkpointer: memory,
-});
+}).withConfig({ recursionLimit: 50 });

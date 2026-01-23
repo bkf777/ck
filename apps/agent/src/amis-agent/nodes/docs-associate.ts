@@ -1,13 +1,11 @@
 import { RunnableConfig } from "@langchain/core/runnables";
-import { ChatAnthropic } from "@langchain/anthropic";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
 import { getAllDocFiles, isAmisRelated } from "../utils.js";
 
 /**
- * 1.5 文档关联节点 (Docs Associate Node)
- * 职责：一次性为所有任务检索并关联文档地址，避免重复检索
+ * 1.5 文档关联节点 (Docs Associate Node) - 启发式匹配版
+ * 职责：通过关键词匹配为任务关联文档，完全避免 LLM 调用以节省 RPM。
  */
 export async function docs_associate_node(
   state: AmisAgentState,
@@ -21,12 +19,14 @@ export async function docs_associate_node(
     return {};
   }
 
-  console.log(
-    `\n📚 [DocsAssociate] 开始为 ${tasks.length} 个任务批量检索文档...`,
-  );
+  const targetTasks = tasks.filter(task => isAmisRelated(task));
+  if (targetTasks.length === 0) {
+    return { tasks };
+  }
+
+  console.log(`\n📚 [DocsAssociate] 开始为 ${targetTasks.length} 个任务进行启发式文档检索...`);
 
   try {
-    // 动态读取文档列表
     const docsRoot = process.env.DOCS_ROOT || "src/docs";
     let allDocs: string[] = [];
     try {
@@ -35,117 +35,74 @@ export async function docs_associate_node(
       console.warn("Failed to list docs:", e);
     }
 
-    const model = new ChatAnthropic({
-          temperature: 0.1,
-          model: process.env.ANTHROPIC_MODEL || "glm-4.7",
-          anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",      anthropicApiUrl: process.env.ANTHROPIC_API_URL || "",
+    const updatedTasks = tasks.map(task => {
+      if (!isAmisRelated(task)) return task;
+
+      // 提取任务描述和类型中的关键词
+      const searchStr = `${task.description} ${task.type}`.toLowerCase();
+      
+      // 简单的启发式匹配算法
+      const matches = allDocs
+        .map(docPath => {
+          const fileName = docPath.toLowerCase();
+          let score = 0;
+          
+          // 1. 类型匹配 (权重最高)
+          if (task.type && fileName.includes(task.type.toLowerCase())) score += 10;
+          
+          // 2. 关键词匹配
+          const keywords = ["form", "table", "chart", "crud", "list", "card", "tabs", "input", "select", "dialog"];
+          keywords.forEach(kw => {
+            if (searchStr.includes(kw) && fileName.includes(kw)) score += 5;
+          });
+
+          // 3. 路径包含匹配
+          const parts = task.description.toLowerCase().split(/[型：\s,，]/);
+          parts.forEach(part => {
+            if (part.length > 1 && fileName.includes(part)) score += 2;
+          });
+
+          return { path: docPath, score };
+        })
+        .filter(m => m.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+
+      const selectedPaths = matches.map(m => m.path);
+
+      return {
+        ...task,
+        docPaths: selectedPaths,
+        docHints: selectedPaths.map((path) => ({
+          path,
+          anchors: undefined,
+          score: undefined,
+          summary: undefined,
+        })),
+      };
     });
 
-    // 批量处理所有任务，一次性为所有任务检索文档
-    const updatedTasks = await Promise.all(
-      tasks.map(async (task) => {
-        const related = isAmisRelated(task);
-
-        if (!related) {
-          return task;
-        }
-
-        const prompt = `你是一个文档助手。请根据任务描述，从给定的文件列表中找出最相关的文档。
-
-任务描述：${task.description}
-任务类型：${task.type}
-
-文件列表：
-${allDocs.join("\n")}
-
-请返回最相关的 1-3 个文件路径。
-要求：
-1. 只返回 JSON 字符串数组，不要包含 Markdown 格式或其他文字。
-2. 必须精确匹配列表中的路径。
-例如：["src/docs/components/form/input-text.md"]`;
-
-        try {
-          const response = await model.invoke([
-            new SystemMessage({ content: "你是 amis 文档专家" }),
-            new HumanMessage({ content: prompt }),
-          ]);
-
-          let selectedPaths: string[] = [];
-          const content = response.content as string;
-
-          // 多策略提取 JSON 数组
-          let jsonString = content.trim();
-
-          // 策略1: 提取代码块中的内容
-          const codeBlockMatch = content.match(
-            /```(?:json)?\s*(\[[\s\S]*?\])\s*```/,
-          );
-          if (codeBlockMatch) {
-            jsonString = codeBlockMatch[1].trim();
-          } else {
-            // 策略2: 提取方括号内容
-            const jsonMatch = content.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-              jsonString = jsonMatch[0];
-            }
-          }
-
-          try {
-            selectedPaths = JSON.parse(jsonString);
-          } catch (parseError) {
-            // 如果解析失败，尝试清理后再解析
-            jsonString = jsonString.replace(/,\s*\]/g, "]"); // 移除尾部多余逗号
-            selectedPaths = JSON.parse(jsonString);
-          }
-
-          if (!Array.isArray(selectedPaths)) {
-            selectedPaths = [];
-          }
-
-          return {
-            ...task,
-            docPaths: selectedPaths,
-            docHints: selectedPaths.map((path) => ({
-              path,
-              anchors: undefined,
-              score: undefined,
-              summary: undefined,
-            })),
-          };
-        } catch (e) {
-          console.error(`文档检索失败 for task ${task.id}:`, e);
-          return { ...task, docPaths: task.docPaths || [], docHints: [] };
-        }
-      }),
-    );
-
-    // 统计检索结果
-    const totalDocs = updatedTasks.reduce(
-      (sum, task) => sum + (task.docPaths?.length || 0),
-      0,
-    );
+    const totalDocs = updatedTasks.reduce((sum, t) => sum + (t.docPaths?.length || 0), 0);
 
     const event: ExecutionEvent = {
       type: "docs_found",
       timestamp: new Date().toISOString(),
-      message: `批量文档检索完成：为 ${updatedTasks.length} 个任务检索了 ${totalDocs} 篇文档`,
-      data: { tasks: updatedTasks },
+      message: `启发式文档检索完成：关联了 ${totalDocs} 篇文档 (0 RPM 消耗)`,
     };
 
-    console.log(`✅ [DocsAssociate] 批量检索完成：${totalDocs} 篇文档`);
+    console.log(`✅ [DocsAssociate] 检索完成：${totalDocs} 篇文档 (已禁用 AI 以节省 RPM)`);
 
     return {
       tasks: updatedTasks,
       executionLog: [...(state.executionLog || []), event],
     };
   } catch (e) {
-    const errEvent: ExecutionEvent = {
-      type: "error",
-      timestamp: new Date().toISOString(),
-      message: `批量文档检索异常：${(e as Error).message}`,
-    };
     return {
-      executionLog: [...(state.executionLog || []), errEvent],
+      executionLog: [...(state.executionLog || []), {
+        type: "error",
+        timestamp: new Date().toISOString(),
+        message: `文档检索异常: ${(e as Error).message}`
+      }],
     };
   }
 }

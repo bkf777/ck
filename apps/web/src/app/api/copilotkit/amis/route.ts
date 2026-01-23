@@ -34,8 +34,8 @@ const runtime = new CopilotRuntime({
       graphId: "amisAgent",
       langsmithApiKey: process.env.LANGSMITH_API_KEY || "",
       assistantConfig: {
+        recursionLimit: 50,
         configurable: {
-          recursionLimit: 100,
         },
       },
     }),

@@ -11,8 +11,9 @@ export type Task = {
   type: string;
   priority: number;
   docPaths: string[];
-  status: "pending" | "in_progress" | "completed" | "failed";
+  status: "pending" | "in_progress" | "completed" | "failed" | "json_error";
   result?: any;
+  rawResult?: string;
   retryCount?: number;
   errorMessage?: string;
   // 子任务列表（用于可复用 Planner 的二次拆解）

@@ -1,5 +1,6 @@
 import { RunnableConfig } from "@langchain/core/runnables";
 import { ChatAnthropic } from "@langchain/anthropic";
+import { createChatModel } from "../../utils/model-factory.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
@@ -19,25 +20,20 @@ export async function composer_node(
   // 从 tasks 中提取执行结果
   const taskResults = tasks
     .filter((t) => t.status === "completed" && t.result)
-    .map((t) => t.result);
+    .map((t) => parseJsonFromMarkdown(t.result));
   const userRequirement = state.userRequirement;
 
   console.log(`📊 [Composer] 已有 ${taskResults.length} 个组件需要综合`);
 
   // 定义模型
-  const model = new ChatAnthropic({
+  const model = createChatModel({
     temperature: 0.3,
-    model: process.env.ANTHROPIC_MODEL || "glm-4.7",
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
-    anthropicApiUrl: process.env.ANTHROPIC_API_URL || "",
   });
 
   // 如果有任务结果，综合它们
   if (taskResults.length > 0) {
     // 构建提示词
     const prompt = `你是 amis 配置综合专家。请将以下组件综合成一个完整的 amis JSON 配置。
-
-用户需求：${userRequirement}
 
 已生成的组件：
 ${JSON.stringify(taskResults, null, 2)}
