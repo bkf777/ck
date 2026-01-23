@@ -49,9 +49,8 @@ async function chat_node(state: AgentState, config: RunnableConfig) {
   // 5.1 Define the model, lower temperature for deterministic responses
   const model = new ChatAnthropic({
     temperature: 0,
-    model: "glm-4.7",
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
-    anthropicApiUrl: process.env.ANTHROPIC_API_URL || "",
+    model: process.env.ANTHROPIC_MODEL || "glm-4.7",
+    apiKey: process.env.ANTHROPIC_API_KEY,
   });
 
   // 5.2 Bind the tools to the model, include CopilotKit actions. This allows

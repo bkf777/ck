@@ -36,10 +36,9 @@ export async function docs_associate_node(
     }
 
     const model = new ChatAnthropic({
-      temperature: 0.1,
-      model: "glm-4.7",
-      anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
-      anthropicApiUrl: process.env.ANTHROPIC_API_URL || "",
+          temperature: 0.1,
+          model: process.env.ANTHROPIC_MODEL || "glm-4.7",
+          anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",      anthropicApiUrl: process.env.ANTHROPIC_API_URL || "",
     });
 
     // 批量处理所有任务，一次性为所有任务检索文档

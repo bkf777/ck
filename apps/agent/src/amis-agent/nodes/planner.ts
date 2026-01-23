@@ -33,7 +33,7 @@ export async function planner_node(
   // 定义模型
   const model = new ChatAnthropic({
     temperature: 0.3,
-    model: "glm-4.7",
+    model: process.env.ANTHROPIC_MODEL || "glm-4.7",
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
     anthropicApiUrl: process.env.ANTHROPIC_API_URL || "",
   });
