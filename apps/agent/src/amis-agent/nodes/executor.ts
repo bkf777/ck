@@ -92,12 +92,9 @@ export async function executor_node(
 
   console.log(state.copilotkit?.actions);
 
-  // 绑定工具
-  // 移除 ...tools 以防止 Executor 调用检索工具导致递归深度过大
-  // 文档检索已由 docs_associate 节点完成
-  const modelWithTools = model.bindTools!([
-    ...convertActionsToDynamicStructuredTools(state.copilotkit?.actions ?? []),
-  ]);
+  // 移除工具绑定，强制模型只生成文本 JSON
+  // 之前的绑定导致模型尝试调用工具而不是生成配置，导致 rawResult 为空引发死循环
+  const modelWithTools = model;
 
   // 对已有结果进行精简，避免 Context 过大
   const simplifiedResults = existingResults.map(getLightweightSchema);
