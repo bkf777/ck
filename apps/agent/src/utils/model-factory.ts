@@ -158,13 +158,14 @@ export function createChatModel(options: CreateChatModelOptions = {}) {
     anthropicApiKey: apiKey,
     anthropicApiUrl: apiUrl,
     maxRetries: options.maxRetries ?? 5,
+    maxTokens: options.maxTokens ?? 20000,
     ...safeOptions,
   });
 
   const originalInvoke = model.invoke.bind(model);
   model.invoke = async (...args: any[]) => {
     await globalRateLimiter.acquire();
-    return originalInvoke(...args);
+    return (originalInvoke as any)(...args);
   };
 
   return model;

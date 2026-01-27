@@ -659,7 +659,7 @@ async function runSmokeTest() {
 }
 }
 },
-}  生成报告创建一个关于如何使用amis-agent的报告，并使用中文描述。`,
+}  生成报告并使用中文描述。`,
     tasks: [] as Task[],
     currentTaskIndex: 0,
     finalJson: {},

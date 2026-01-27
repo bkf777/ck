@@ -1,5 +1,4 @@
 import { RunnableConfig } from "@langchain/core/runnables";
-import { ChatAnthropic } from "@langchain/anthropic";
 import { createChatModel } from "../../utils/model-factory.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { AmisAgentState } from "../state.js";
@@ -28,6 +27,7 @@ export async function composer_node(
   // 定义模型
   const model = createChatModel({
     temperature: 0.3,
+    maxTokens: 8192, // 综合阶段可能生成较大的 JSON，确保 Token 足够
   });
 
   // 如果有任务结果，综合它们
@@ -58,7 +58,7 @@ ${JSON.stringify(taskResults, null, 2)}
       const finalJson = parseJsonFromMarkdown(content);
 
       console.log("✅ [Composer] 综合完成");
-      console.log(JSON.stringify(finalJson, null, 2));
+      console.log(finalJson);
 
       // 添加执行日志
       const event: ExecutionEvent = {

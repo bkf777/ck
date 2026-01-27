@@ -23,9 +23,11 @@ const deploymentUrl =
   process.env.LANGGRAPH_DEPLOYMENT_URL ||
   (process.env.NODE_ENV === "production"
     ? "http://agent:8123"
-    : "http://localhost:8123");
+    : "http://127.0.0.1:8123");
 
-console.log(`[CopilotKit] Initializing AmisEditorPageAgent with deploymentUrl: ${deploymentUrl}`);
+console.log(
+  `[CopilotKit] Initializing AmisEditorPageAgent with deploymentUrl: ${deploymentUrl}`,
+);
 
 const runtime = new CopilotRuntime({
   agents: {
@@ -35,8 +37,7 @@ const runtime = new CopilotRuntime({
       langsmithApiKey: process.env.LANGSMITH_API_KEY || "",
       assistantConfig: {
         recursionLimit: 50,
-        configurable: {
-        },
+        configurable: {},
       },
     }),
   },
@@ -53,7 +54,10 @@ export const POST = async (req: NextRequest) => {
 
     return handleRequest(req);
   } catch (error) {
-    console.error(`Agent connection error (deploymentUrl: ${deploymentUrl}):`, error);
+    console.error(
+      `Agent connection error (deploymentUrl: ${deploymentUrl}):`,
+      error,
+    );
     return NextResponse.json(
       {
         error: "Agent service unavailable",

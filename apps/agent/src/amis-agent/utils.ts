@@ -92,7 +92,7 @@ export function extractSummaryFromContent(content: string): string {
  */
 export function parseJsonFromMarkdown(content: string): any {
   if (!content) return null;
-
+  if (typeof content !== "string") return content;
   let jsonString = content.trim();
 
   // 策略 1: 提取 ```json ... ``` 或 ``` ... ``` 块
