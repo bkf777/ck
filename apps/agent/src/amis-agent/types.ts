@@ -39,7 +39,8 @@ export type ExecutionEvent = {
     | "generation_progress"
     | "task_complete"
     | "error"
-    | "feedback";
+    | "feedback"
+    | "process_data";
   timestamp: string;
   taskId?: string;
   message?: string;

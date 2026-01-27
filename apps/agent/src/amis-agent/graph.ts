@@ -4,6 +4,8 @@ import { AIMessage, ToolMessage } from "@langchain/core/messages";
 
 import { AgentStateAnnotation, AmisAgentState } from "./state.js";
 import { tools } from "./tools.js";
+import { input_processor_node } from "./nodes/input-processor.js";
+import { experiment_allocator_node } from "./nodes/experiment-allocator.js";
 import { planner_node } from "./nodes/planner.js";
 import { docs_associate_node } from "./nodes/docs-associate.js";
 import { context_node } from "./nodes/context.js";
@@ -22,19 +24,23 @@ import { composer_node } from "./nodes/composer.js";
 function route_after_validation(state: AmisAgentState): string {
   const currentIndex = state.currentTaskIndex || 0;
   const tasks = state.tasks || [];
-  
+
   if (currentIndex < tasks.length) {
     const currentTask = tasks[currentIndex];
-    
+
     // 如果 JSON 解析错误，进入修复节点
     if (currentTask.status === "json_error") {
-      console.log(`🔀 [Route] 任务 ${currentTask.id} JSON 解析错误，跳转 -> fixer`);
+      console.log(
+        `🔀 [Route] 任务 ${currentTask.id} JSON 解析错误，跳转 -> fixer`,
+      );
       return "fixer";
     }
-    
+
     // 如果由于某种原因验证节点将其标记为失败（非 JSON 错误），回退到规划节点
     if (currentTask.status === "failed") {
-      console.log(`🔀 [Route] 任务 ${currentTask.id} 验证失败，跳转 -> planner`);
+      console.log(
+        `🔀 [Route] 任务 ${currentTask.id} 验证失败，跳转 -> planner`,
+      );
       return "planner";
     }
   }
@@ -54,7 +60,17 @@ function route_start(state: AmisAgentState): string {
     console.log("🔀 [Route] 检测到工具输出，跳转 -> executor");
     return "executor";
   }
-  console.log("🔀 [Route] 初始启动，跳转 -> planner");
+  console.log("🔀 [Route] 初始启动，跳转 -> experiment_allocator");
+  return "experiment_allocator";
+}
+
+/**
+ * A/B 测试路由
+ */
+function route_ab_test(state: AmisAgentState): string {
+  if (state.abTestGroup === "B") {
+    return "input_processor";
+  }
   return "planner";
 }
 
@@ -133,6 +149,8 @@ function shouldRequestFeedback(state: AmisAgentState): boolean {
 
 const workflow = new StateGraph(AgentStateAnnotation)
   // 添加节点
+  .addNode("experiment_allocator", experiment_allocator_node)
+  .addNode("input_processor", input_processor_node)
   .addNode("planner", planner_node)
   // 文档关联节点：为所有任务批量检索并关联文档地址（只执行一次）
   .addNode("docs_associate", docs_associate_node)
@@ -145,9 +163,14 @@ const workflow = new StateGraph(AgentStateAnnotation)
 
   // 添加边
   .addConditionalEdges(START, route_start, {
-    planner: "planner",
+    experiment_allocator: "experiment_allocator",
     executor: "executor",
   })
+  .addConditionalEdges("experiment_allocator", route_ab_test, {
+    input_processor: "input_processor",
+    planner: "planner",
+  })
+  .addEdge("input_processor", "planner")
   .addEdge("planner", "docs_associate")
   .addEdge("docs_associate", "context")
   .addEdge("context", "executor")
@@ -169,6 +192,8 @@ const workflow = new StateGraph(AgentStateAnnotation)
 
 // 编译工作流
 const memory = new MemorySaver();
-export const graph = workflow.compile({
-  checkpointer: memory,
-}).withConfig({ recursionLimit: 50 });
+export const graph = workflow
+  .compile({
+    checkpointer: memory,
+  })
+  .withConfig({ recursionLimit: 50 });

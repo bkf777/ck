@@ -51,6 +51,21 @@ export const AgentStateAnnotation = Annotation.Root({
 
   // 需要回到规划节点重新规划
   needsReplan: Annotation<boolean>,
+
+  // 处理后的数据（由 input_processor 提取）
+  processData: Annotation<{
+    rawData: string; // 原始数据内容
+    dataStructure: any; // 结构化数据
+    dataMeta: {
+      // 数据元信息
+      description: string;
+      schema: object;
+      type: string;
+    };
+  }>,
+
+  // A/B 测试分组 (A: 对照组-旧流程, B: 实验组-新流程)
+  abTestGroup: Annotation<"A" | "B">,
 });
 
 export type AmisAgentState = typeof AgentStateAnnotation.State;
