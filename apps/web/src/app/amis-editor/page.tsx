@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
-import { CopilotSidebar } from "@copilotkit/react-ui";
-import {
-  useCoAgent,
-  useCopilotReadable,
-  useFrontendTool,
-} from "@copilotkit/react-core";
+// ... imports
+import { CopilotSidebar, CopilotChat } from "@copilotkit/react-ui";
+import { useCoAgent, useCoAgentStateRender, useCopilotReadable, useFrontendTool } from "@copilotkit/react-core";
+
+import { type AmisAgentState } from "../../../../agent/src/amis-agent/state";
+import { type Task, type ExecutionEvent } from "../../../../agent/src/amis-agent/types";
 
 // 动态导入 qiankun 避免 SSR 报错
 let loadMicroApp: any;
@@ -51,45 +51,311 @@ type AmisInstance = {
   updateProps: (props: Record<string, unknown>) => void;
 };
 
-// ============================================================
-// 类型定义
-// ============================================================
+function AmisAgentChat() {
+  const { theme } = { theme: 'light' }; // Simple theme mock or use a real hook if available
 
-type Task = {
-  id: string;
-  description: string;
-  type: string;
-  priority: number;
-  docPaths: string[];
-  status: "pending" | "in_progress" | "completed" | "failed";
-  result?: any;
-  retryCount?: number;
-  errorMessage?: string;
-};
+  useCoAgentStateRender<AmisAgentState>({
+    name: "AmisEditorPageAgent",
+    render: ({ state }) => {
+      if (!state.tasks || state.tasks.length === 0) {
+        return null;
+      }
 
-type ExecutionEvent = {
-  type:
-    | "task_start"
-    | "doc_retrieval"
-    | "docs_found"
-    | "generating"
-    | "generation_progress"
-    | "task_complete"
-    | "error"
-    | "feedback";
-  timestamp: string;
-  taskId?: string;
-  message?: string;
-  data?: any;
-};
+      const completedCount = state.currentTaskIndex || 0;
+      const progressPercentage = (completedCount / state.tasks.length) * 100;
+      
+      // Calculate active task
+      const activeTaskIndex = state.currentTaskIndex ?? 0;
+      
+      return (
+        <div className="flex flex-col gap-4 p-4 bg-white/50 backdrop-blur-sm rounded-xl border border-gray-100 shadow-sm mt-4">
+           {/* Re-use the TaskProgressCard logic or component here if possible, 
+               but since TaskProgressCard takes props, we can just use it! 
+           */}
+           <TaskProgressCard 
+             tasks={state.tasks} 
+             currentTaskIndex={state.currentTaskIndex || 0} 
+           />
+           
+           <FinalResultCard 
+             schema={state.schema || {}} 
+             executionLog={state.executionLog} 
+           />
+        </div>
+      );
+    },
+  });
 
-type AgentState = {
-  tasks?: Task[];
-  currentTaskIndex?: number;
-  executionLog?: ExecutionEvent[];
-  schema?: object;
-  userRequirement?: string;
-};
+  return (
+    <div className="h-full w-full flex flex-col bg-gray-50/50">
+        <CopilotChat
+          className="h-full w-full"
+          labels={{
+            initial:
+              "Hi, I'm your Amis AI Agent! I can help you design and modify this page. Try saying 'Add a login form' or 'Change the title'.",
+          }}
+          suggestions={[
+            {
+              title: "Create Form",
+              message: `{
+    "platformWorksNumDist": {"youtube":45,"tiktok":20,"ins":1356},
+    "platformInteractiveDist": {"youtube":12930,"tiktok":13818,"ins":1537641},
+    "platformAccountNumDist": {"youtube":19,"tiktok":14,"ins":591},
+    "accountCatStats": {
+        "youtube": {
+            "People&Society": {
+                "p": 6070,
+                "kl": {
+                    "MicroInfluencer": {
+                        "p": 6070,
+                        "c": 8,
+                        "i": 81878
+                    }
+                },
+                "c": 8,
+                "i": 81878
+            },
+            "Entertainment": {
+                "p": 480,
+                "kl": {
+                    "MicroInfluencer": {
+                        "p": 480,
+                        "c": 1,
+                        "i": 864
+                    }
+                },
+                "c": 1,
+                "i": 864
+            },
+            "Education": {
+                "p": 1000,
+                "kl": {
+                    "MicroInfluencer": {
+                        "p": 1000,
+                        "c": 1,
+                        "i": 7321
+                    }
+                },
+                "c": 1,
+                "i": 7321
+            },
+            "Comedy": {
+                "p": 480,
+                "kl": {
+                    "MicroInfluencer": {
+                        "p": 480,
+                        "c": 1,
+                        "i": 9982
+                    }
+                },
+                "c": 1,
+                "i": 9982
+            },
+            "Travel&Adventure": {
+                "p": 480,
+                "kl": {
+                    "MicroInfluencer": {
+                        "p": 480,
+                        "c": 1,
+                        "i": 29687
+                    }
+                },
+                "c": 1,
+                "i": 29687
+            }
+          
+        },
+        "tiktok": {
+            "Fashion&Beauty": {
+                "p": 5620,
+                "kl": {
+                    "Mid-tierInfluencer": {
+                        "p": 3110,
+                        "c": 2,
+                        "i": 2721420
+                    },
+                    "MicroInfluencer": {
+                        "p": 2510,
+                        "c": 3,
+                        "i": 4849534
+                    }
+                },
+                "c": 5,
+                "i": 7570954
+            },
+            "Lifestyle": {
+                "p": 4080,
+                "kl": {
+                    "Mid-tierInfluencer": {
+                        "p": 3350,
+                        "c": 1,
+                        "i": 19574401
+                    },
+                    "MicroInfluencer": {
+                        "p": 730,
+                        "c": 1,
+                        "i": 1613236
+                    }
+                },
+                "c": 2,
+                "i": 21187637
+            },
+            "Comedy": {
+                "p": 17620,
+                "kl": {
+                    "MacroInfluencer": {
+                        "p": 17620,
+                        "c": 1,
+                        "i": 16353039
+                    }
+                },
+                "c": 1,
+                "i": 16353039
+            },
+            "Family&Parenting": {
+                "p": 1480,
+                "kl": {
+                    "Mid-tierInfluencer": {
+                        "p": 1480,
+                        "c": 1,
+                        "i": 2408349
+                    }
+                },
+                "c": 1,
+                "i": 2408349
+            },
+            "Music&Dance": {
+                "p": 48590,
+                "kl": {
+                    "Mid-tierInfluencer": {
+                        "p": 3590,
+                        "c": 1,
+                        "i": 9913817
+                    },
+                    "MegaInfluencer": {
+                        "p": 45000,
+                        "c": 1,
+                        "i": 31126657
+                    }
+                },
+                "c": 2,
+                "i": 41040474
+            }
+        },
+        "ins": {
+            "DIY&Crafts": {
+                "p": 16100,
+                "kl": {
+                    "Mid-tierInfluencer": {
+                        "p": 11450,
+                        "c": 3,
+                        "i": 3937435
+                    },
+                    "MicroInfluencer": {
+                        "p": 4650,
+                        "c": 3,
+                        "i": 102406
+                    }
+                },
+                "c": 6,
+                "i": 4039841
+            },
+            "Art": {
+                "p": 3770,
+                "kl": {
+                    "Mid-tierInfluencer": {
+                        "p": 3770,
+                        "c": 1,
+                        "i": 622624
+                    }
+                },
+                "c": 1,
+                "i": 622624
+            },
+            "Business&Finance": {
+                "p": 384090,
+                "kl": {
+                    "Mid-tierInfluencer": {
+                        "p": 52410,
+                        "c": 7,
+                        "i": 4037958
+                    },
+                    "MegaInfluencer": {
+                        "p": 293510,
+                        "c": 3,
+                        "i": 19069242
+                    },
+                    "MacroInfluencer": {
+                        "p": 9940,
+                        "c": 1,
+                        "i": 975449
+                    },
+                    "MicroInfluencer": {
+                        "p": 28230,
+                        "c": 15,
+                        "i": 616357
+                    }
+                },
+                "c": 26,
+                "i": 24699006
+            },
+            "Entertainment": {
+                "p": 12670,
+                "kl": {
+                    "Mid-tierInfluencer": {
+                        "p": 10610,
+                        "c": 2,
+                        "i": 6126547
+                    },
+                    "MicroInfluencer": {
+                        "p": 2060,
+                        "c": 3,
+                        "i": 484284
+                    }
+                },
+                "c": 5,
+                "i": 6610831
+            },
+            "Health&Fitness": {
+                "p": 88120,
+                "kl": {
+                    "Mid-tierInfluencer": {
+                        "p": 60460,
+                        "c": 17,
+                        "i": 11227600
+                    },
+                    "MegaInfluencer": {
+                        "p": 13610,
+                        "c": 1,
+                        "i": 4783444
+                    },
+                    "MacroInfluencer": {
+                        "p": 8390,
+                        "c": 1,
+                        "i": 3210556
+                    },
+                    "MicroInfluencer": {
+                        "p": 5660,
+                        "c": 5,
+                        "i": 408110
+                    }
+                },
+                "c": 24,
+                "i": 19629710
+            }
+        }
+    }
+} 帮我生成报告并且分析`,
+            },
+            {
+              title: "Modify Style",
+              message: "make the form use horizontal layout",
+            },
+          ]}
+        />
+    </div>
+  );
+}
 
 export default function AmisEditorPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -98,7 +364,7 @@ export default function AmisEditorPage() {
   const [sdkReady, setSdkReady] = useState(false);
 
   // 使用 useCoAgent 连接到 AmisEditorPageAgent
-  const { state, setState } = useCoAgent<AgentState>({
+  const { state, setState } = useCoAgent<AmisAgentState>({
     name: "AmisEditorPageAgent",
     initialState: {
       tasks: [],
@@ -128,135 +394,19 @@ export default function AmisEditorPage() {
       ],
       handler: async ({ schema }: { schema: object }) => {
         const nextSchema = schema as Record<string, unknown>;
-        setState((prev) => ({
-          ...prev,
-          schema: nextSchema,
-        }));
         updateSchema(nextSchema);
         return "schema 已更新";
       },
     },
-    [state],
-  );
-  // 注册任务状态展示动作
-  useFrontendTool(
-    {
-      name: "showExecutionStatus",
-      description: "展示任务执行状态进度面板",
-      parameters: [],
-      handler: async () => {
-        // 这是一个展示用的 Action，不需要实际执行逻辑
-        return "任务执行状态面板已展示";
-      },
-      render: () => {
-        const hasActiveTasks =
-          state.tasks &&
-          state.tasks.length > 0 &&
-          state.currentTaskIndex !== undefined;
-        console.log(state, "12332313");
-        const hasFinalResult =
-          state.schema && Object.keys(state.schema).length > 0;
-
-        if (!hasActiveTasks && !hasFinalResult) {
-          return <div className="p-4 text-gray-500">暂无任务执行状态</div>;
-        }
-
-        return (
-          <div className="w-full p-4 space-y-4 rounded-lg border border-gray-200 bg-white">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🤖</span>
-                <h3 className="font-bold text-gray-800">任务执行状态</h3>
-              </div>
-            </div>
-
-            {/* 任务进度卡片 */}
-            {hasActiveTasks && (
-              <TaskProgressCard
-                tasks={state.tasks!}
-                currentTaskIndex={state.currentTaskIndex!}
-              />
-            )}
-
-            {/* 执行日志 */}
-            {state.executionLog && state.executionLog.length > 0 && (
-              <div className="bg-gray-50 border rounded-lg p-3">
-                <h4 className="font-bold text-sm text-gray-800 mb-2 flex items-center gap-2">
-                  <span>📊</span> 执行日志
-                </h4>
-                <Timeline events={state.executionLog} />
-              </div>
-            )}
-
-            {/* 最终结果 */}
-            {hasFinalResult && (
-              <FinalResultCard
-                schema={state.schema!}
-                executionLog={state.executionLog}
-              />
-            )}
-          </div>
-        );
-      },
-    },
-    [state],
+    [state]
   );
 
   // 监听 agent 状态变化（用于调试和 UI 更新）
-
   const ref = useRef<AmisInstance | null>(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  // useCopilotAction({
-  //   name: "retrieveDocumentation",
-  //   description: "检索 amis 相关文档",
-  //   available: "enabled",
-  //   parameters: [
-  //     { name: "query", type: "string", required: true },
-  //     { name: "taskType", type: "string", required: true },
-  //   ],
-  //   render: ({ args, status, result }) => {
-  //     return (
-  //       <DocRetrievalCard
-  //         query={args.query}
-  //         taskType={args.taskType}
-  //         status={status}
-  //         result={result}
-  //       />
-  //     );
-  //   },
-  // });
-
-  // useEffect(() => {
-  //   if (isClient && containerRef.current && !microAppRef.current) {
-  //     // 只有在客户端才导入 qiankun
-  //     import("qiankun").then((m) => {
-  //       loadMicroApp = m.loadMicroApp;
-  //       microAppRef.current = loadMicroApp({
-  //         name: "amis-app",
-  //         entry: "//localhost:3001",
-  //         container: containerRef.current,
-  //         props: {
-  //           initialSchema: schemaRef.current,
-  //           onSchemaChange: (value: Record<string, unknown>) => {
-  //             console.log("Schema changed in sub-app:", value);
-  //             schemaRef.current = value;
-  //           },
-  //         },
-  //       });
-  //     });
-  //   }
-
-  //   return () => {
-  //     if (microAppRef.current) {
-  //       microAppRef.current.unmount();
-  //       microAppRef.current = null;
-  //     }
-  //   };
-  // }, [isClient]);
 
   // 初始化 amis
   useEffect(() => {
@@ -278,9 +428,6 @@ export default function AmisEditorPage() {
   // 当 schema 更新时重新渲染
   function updateSchema(newSchema: Record<string, unknown>) {
     console.log("准备更新 schema:", newSchema);
-    console.log("ref.current:", ref.current);
-    console.log("ref.current?.updateSchema:", ref.current?.updateSchema);
-
     if (ref.current && typeof ref.current.updateSchema === "function") {
       try {
         ref.current.updateSchema(newSchema);
@@ -301,23 +448,12 @@ export default function AmisEditorPage() {
     );
   }
 
-  // 判断是否有正在执行的任务
-  const hasActiveTasks =
-    state.tasks &&
-    state.tasks.length > 0 &&
-    state.currentTaskIndex !== undefined;
-
-  // 判断是否有最终结果
-  const hasFinalResult = state.schema && Object.keys(state.schema).length > 0;
-
   return (
     <>
-      {/* 加载 amis SDK 样式 */}
       <link rel="stylesheet" href="/amis/sdk.css" />
       <link rel="stylesheet" href="/amis/helper.css" />
       <link rel="stylesheet" href="/amis/iconfont.css" />
 
-      {/* 加载 amis SDK 脚本 */}
       <Script
         src="/amis/sdk.js"
         strategy="afterInteractive"
@@ -330,27 +466,24 @@ export default function AmisEditorPage() {
         }}
       />
 
-      <main className="h-screen w-full relative flex">
-        <div className="flex-1 h-full overflow-hidden">
+      <main className="h-screen w-full relative flex overflow-hidden">
+        <div className="flex-1 h-full overflow-hidden relative z-0">
           <div
             ref={containerRef}
             id="amis-app-container"
             className="h-full w-full"
           />
         </div>
-        <CopilotSidebar
-          instructions="你是一个低代码专家。你可以通过调用 updateAmisSchema 来帮助用户生成或修改 amis 页面配置。你可以看到当前的 schema，并在用户要求时进行改进。"
-          defaultOpen={true}
-          labels={{
-            title: "Amis AI 助手",
-            initial:
-              "你好！我可以帮你通过微前端方式设计低代码页面。你可以对我说：'帮我加一个注册表单' 或者 '修改页面标题'。",
-          }}
-        />
+        
+        {/* Custom Sidebar / Chat Area */}
+        <div className="w-[450px] h-full border-l border-gray-200 bg-white z-10 shadow-xl flex-shrink-0">
+          <AmisAgentChat />
+        </div>
       </main>
     </>
   );
 }
+
 
 // ============================================================
 // 生成式 UI 组件
@@ -470,6 +603,14 @@ function DocRetrievalCard({
  * 任务进度卡片组件
  * 用于显示任务规划和执行进度
  */
+
+/**
+ * 任务进度卡片组件
+ * 用于显示任务规划和执行进度
+ */
+import { Check, Clock, Loader2 } from "lucide-react";
+
+
 function TaskProgressCard({
   tasks,
   currentTaskIndex,
@@ -479,102 +620,182 @@ function TaskProgressCard({
 }) {
   if (!tasks || tasks.length === 0) return null;
 
-  const progress = (currentTaskIndex / tasks.length) * 100;
+  const completedCount = currentTaskIndex;
+  const progressPercentage = (completedCount / tasks.length) * 100;
+  // 简化的 theme 处理，默认 light
+  const theme: string = "light";
+  // const theme: "light" | "dark" = "light";
 
   return (
-    <div className="bg-white border rounded-lg shadow-md p-4 mb-3">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">📋</span>
-          <h4 className="font-bold text-gray-800">任务规划</h4>
-        </div>
-        <span className="text-sm text-gray-500">
-          {currentTaskIndex}/{tasks.length}
-        </span>
-      </div>
-
-      {/* 进度条 */}
-      <div className="mb-3">
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
-
-      {/* 任务列表 */}
-      <div className="space-y-2 max-h-60 overflow-auto">
-        {tasks.map((task, index) => {
-          const isCompleted = index < currentTaskIndex;
-          const isCurrent = index === currentTaskIndex;
-          const isPending = index > currentTaskIndex;
-
-          return (
+    <div className="flex">
+      <div
+        data-testid="task-progress"
+        className={`relative rounded-xl w-full p-6 shadow-lg backdrop-blur-sm overflow-hidden ${
+          theme === "dark"
+            ? "bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 text-white border border-slate-700/50 shadow-2xl"
+            : "bg-linear-to-br from-white via-gray-50 to-white text-gray-800 border border-gray-200/80"
+        }`}
+      >
+        {/* Header */}
+        <div className="mb-5 relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Task Progress
+            </h3>
             <div
-              key={task.id}
-              className={`flex items-start gap-3 p-2 rounded transition-all ${
-                isCompleted
-                  ? "bg-green-50"
-                  : isCurrent
-                    ? "bg-purple-50 border border-purple-300"
-                    : "bg-gray-50"
-              }`}
+              className={`text-sm ${theme === "dark" ? "text-slate-400" : "text-gray-500"}`}
             >
+              {completedCount}/{tasks.length} Complete
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div
+            className={`relative h-2 rounded-full overflow-hidden ${theme === "dark" ? "bg-slate-700" : "bg-gray-200"}`}
+          >
+            <div
+              className="absolute top-0 left-0 h-full bg-linear-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-1000 ease-out"
+              style={{ width: `${progressPercentage}%` }}
+            />
+            <div
+              className={`absolute top-0 left-0 h-full w-full bg-linear-to-r from-transparent to-transparent animate-pulse ${
+                theme === "dark" ? "via-white/20" : "via-white/40"
+              }`}
+            />
+          </div>
+        </div>
+
+        {/* Steps */}
+        <div className="space-y-2 relative z-10">
+          {tasks.map((task, index) => {
+            const isCompleted = index < currentTaskIndex;
+            const isCurrentPending = index === currentTaskIndex;
+            // const isFuturePending = index > currentTaskIndex; // unused
+
+            return (
               <div
-                className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                key={task.id || index}
+                className={`relative flex items-center p-2.5 rounded-lg transition-all duration-500 ${
                   isCompleted
-                    ? "bg-green-500 text-white"
-                    : isCurrent
-                      ? "bg-purple-500 text-white animate-pulse"
-                      : "bg-gray-300 text-gray-600"
+                    ? theme === "dark"
+                      ? "bg-linear-to-r from-green-900/30 to-emerald-900/20 border border-green-500/30"
+                      : "bg-linear-to-r from-green-50 to-emerald-50 border border-green-200/60"
+                    : isCurrentPending
+                      ? theme === "dark"
+                        ? "bg-linear-to-r from-blue-900/40 to-purple-900/30 border border-blue-500/50 shadow-lg shadow-blue-500/20"
+                        : "bg-linear-to-r from-blue-50 to-purple-50 border border-blue-200/60 shadow-md shadow-blue-200/50"
+                      : theme === "dark"
+                        ? "bg-slate-800/50 border border-slate-600/30"
+                        : "bg-gray-50/50 border border-gray-200/60"
                 }`}
               >
-                {isCompleted ? "✓" : index + 1}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className={`text-sm font-medium ${
-                    isCurrent ? "text-purple-800" : "text-gray-700"
+                {/* Connector Line */}
+                {index < tasks.length - 1 && (
+                  <div
+                    className={`absolute left-5 top-full w-0.5 h-2 bg-linear-to-b ${
+                      theme === "dark"
+                        ? "from-slate-500 to-slate-600"
+                        : "from-gray-300 to-gray-400"
+                    }`}
+                  />
+                )}
+
+                {/* Status Icon */}
+                <div
+                  className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+                    isCompleted
+                      ? theme === "dark"
+                        ? "bg-linear-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30"
+                        : "bg-linear-to-br from-green-500 to-emerald-600 shadow-md shadow-green-200"
+                      : isCurrentPending
+                        ? theme === "dark"
+                          ? "bg-linear-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30"
+                          : "bg-linear-to-br from-blue-500 to-purple-600 shadow-md shadow-blue-200"
+                        : theme === "dark"
+                          ? "bg-slate-700 border border-slate-600"
+                          : "bg-gray-300 border border-gray-400"
                   }`}
                 >
-                  {task.description}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs bg-gray-200 px-2 py-0.5 rounded">
-                    {task.type}
-                  </span>
-                  {task.docPaths && task.docPaths.length > 0 && (
-                    <span className="text-xs text-gray-500">
-                      📄 {task.docPaths.length} 文档
-                    </span>
+                  {isCompleted ? (
+                    <Check className="w-4 h-4 text-white" />
+                  ) : isCurrentPending ? (
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  ) : (
+                    <Clock className="w-4 h-4 text-gray-500" />
                   )}
                 </div>
-                {isCurrent && task.status === "in_progress" && (
-                  <div className="flex items-center gap-2 mt-2 text-purple-600 text-xs">
-                    <div className="animate-spin rounded-full h-3 w-3 border-2 border-purple-500 border-t-transparent" />
-                    <span>正在生成配置...</span>
+
+                {/* Step Content */}
+                <div className="flex-1 min-w-0">
+                  <div
+                    data-testid="task-step-text"
+                    className={`font-semibold transition-all duration-300 text-sm ${
+                      isCompleted
+                        ? theme === "dark"
+                          ? "text-green-300"
+                          : "text-green-700"
+                        : isCurrentPending
+                          ? theme === "dark"
+                            ? "text-blue-300 text-base"
+                            : "text-blue-700 text-base"
+                          : theme === "dark"
+                            ? "text-slate-400"
+                            : "text-gray-500"
+                    }`}
+                  >
+                    {task.description}
                   </div>
-                )}
-                {isCompleted && task.result && (
-                  <details className="mt-1">
-                    <summary className="text-xs text-green-600 cursor-pointer hover:underline">
-                      查看生成结果
-                    </summary>
-                    <pre className="mt-1 p-2 bg-gray-900 text-green-400 rounded text-xs overflow-auto max-h-24">
-                      {JSON.stringify(task.result, null, 2)}
-                    </pre>
-                  </details>
-                )}
-                {isCompleted && task.errorMessage && (
-                  <p className="text-xs text-red-600 mt-1">
-                    ❌ {task.errorMessage}
-                  </p>
+                  {isCurrentPending && (
+                    <div
+                      className={`text-sm mt-1 animate-pulse ${
+                        theme === "dark" ? "text-blue-400" : "text-blue-600"
+                      }`}
+                    >
+                      Processing...
+                    </div>
+                  )}
+                  {isCompleted && task.result && (
+                    <details className="mt-1">
+                      <summary className="text-xs text-green-600 cursor-pointer hover:underline">
+                        查看结果
+                      </summary>
+                      <pre className="mt-1 p-2 bg-gray-900 text-green-400 rounded text-xs overflow-auto max-h-24">
+                        {JSON.stringify(task.result, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+
+                {/* Animated Background for Current Step */}
+                {isCurrentPending && (
+                  <div
+                    className={`absolute inset-0 rounded-lg bg-linear-to-r animate-pulse ${
+                      theme === "dark"
+                        ? "from-blue-500/10 to-purple-500/10"
+                        : "from-blue-100/50 to-purple-100/50"
+                    }`}
+                  />
                 )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+        
+        {/* Decorative Elements */}
+        <div
+            className={`absolute top-3 right-3 w-16 h-16 rounded-full blur-xl ${
+            theme === "dark"
+                ? "bg-linear-to-br from-blue-500/10 to-purple-500/10"
+                : "bg-linear-to-br from-blue-200/30 to-purple-200/30"
+            }`}
+        />
+        <div
+            className={`absolute bottom-3 left-3 w-12 h-12 rounded-full blur-xl ${
+            theme === "dark"
+                ? "bg-linear-to-br from-green-500/10 to-emerald-500/10"
+                : "bg-linear-to-br from-green-200/30 to-emerald-200/30"
+            }`}
+        />
       </div>
     </div>
   );
@@ -603,7 +824,7 @@ function FinalResultCard({
   };
 
   return (
-    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-5 mb-3 shadow-lg">
+    <div className="bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-5 mb-3 shadow-lg">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <span className="text-3xl">🎉</span>

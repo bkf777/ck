@@ -6,7 +6,7 @@
   ],
   "graphs": {
     "starterAgent": "./src/agent.ts:graph",
-    "amisAgent": "./src/amis-agent.ts:graph"
+    "amisAgent": "./src/amis-agent/graph.ts:graph"
   },
   "env": ".env"
 }

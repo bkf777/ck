@@ -1,5 +1,5 @@
-import { Annotation } from "@langchain/langgraph";
-import { CopilotKitStateAnnotation } from "@copilotkit/sdk-js/langgraph";
+import { Annotation,MessagesAnnotation } from "@langchain/langgraph";
+
 import { Task, ExecutionEvent } from "./types.js";
 
 // ============================================================
@@ -8,7 +8,7 @@ import { Task, ExecutionEvent } from "./types.js";
 
 export const AgentStateAnnotation = Annotation.Root({
   // CopilotKit 基础状态（包含 messages 和 actions）
-  ...CopilotKitStateAnnotation.spec,
+  ...MessagesAnnotation.spec,
 
   // 用户原始需求
   userRequirement: Annotation<string>,

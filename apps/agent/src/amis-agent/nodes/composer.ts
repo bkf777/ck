@@ -20,7 +20,9 @@ export async function composer_node(
   const taskResults = tasks
     .filter((t) => t.status === "completed" && t.result)
     .map((t) => parseJsonFromMarkdown(t.result));
-  const userRequirement = state.userRequirement;
+  
+  // 获取处理后的数据
+  const processData = state.processData;
 
   console.log(`📊 [Composer] 已有 ${taskResults.length} 个组件需要综合`);
 
@@ -33,15 +35,22 @@ export async function composer_node(
   // 如果有任务结果，综合它们
   if (taskResults.length > 0) {
     // 构建提示词
-    const prompt = `你是 amis 配置综合专家。请将以下组件综合成一个完整的 amis JSON 配置。
+    let prompt = `你是 amis 配置综合专家。请将以下组件综合成一个完整的 amis JSON 配置。
 
 已生成的组件：
-${JSON.stringify(taskResults, null, 2)}
+${JSON.stringify(taskResults, null, 2)}`;
 
-综合要求：
-1. 将所有组件组合成完整的页面配置
-2. 如果是表单组件，放入 form 的 body 中
-3. 如果是页面，包含 type: "page"
+    // 如果有数据上下文，注入到提示词
+    if (processData && processData.dataStructure) {
+      prompt += `\n\n【全局数据上下文】
+请将以下数据作为页面的初始数据（root data）：
+${JSON.stringify(processData.dataStructure, null, 2)}`;
+    }
+
+    prompt += `\n\n综合要求：
+1. 将所有组件组合成完整的页面配置 (type: "page")
+2. 如果存在【全局数据上下文】，务必将其完整注入到根节点的 \`data\` 属性中，以便子组件可以通过 \`source\` 或变量映射访问。
+3. 如果是表单组件，放入 form 的 body 中
 4. 确保结构完整，可直接在 amis 中使用
 5. 添加必要的 API 配置（如需要）
 6. 只返回 JSON 对象，不要有其他内容

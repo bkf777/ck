@@ -23,7 +23,7 @@ const deploymentUrl =
   process.env.LANGGRAPH_DEPLOYMENT_URL ||
   (process.env.NODE_ENV === "production"
     ? "http://agent:8123"
-    : "http://127.0.0.1:8123");
+    : "http://localhost:8123");
 
 console.log(
   `[CopilotKit] Initializing AmisEditorPageAgent with deploymentUrl: ${deploymentUrl}`,
@@ -36,7 +36,6 @@ const runtime = new CopilotRuntime({
       graphId: "amisAgent",
       langsmithApiKey: process.env.LANGSMITH_API_KEY || "",
       assistantConfig: {
-        recursionLimit: 50,
         configurable: {},
       },
     }),

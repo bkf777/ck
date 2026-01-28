@@ -121,11 +121,15 @@ ${JSON.stringify(processData.dataStructure, null, 2)}
         ? JSON.stringify(task.dataDependencies)
         : "未指定（请根据上下文推断）"
     }
-2. 请仔细分析上述数据结构，找到字段的确切路径。
-3. 如果字段在数组中（如 "rows": [{ "month":... }]），请确保组件的 source/data 属性正确绑定到数组路径（如 "\${rows}"），内部字段使用相对路径（如 "\${month}"）。
-4. 如果是顶层字段，请使用绝对路径绑定（如 "\${summary.total}"）。
-5. 务必确保生成的 amis 配置中的变量绑定语法（\${variable}）与提供的数据结构完全一致。
-6. 【禁止硬编码】：严禁将具体的数据值（如 100, 120, "一月"）直接写入配置中。必须始终使用数据绑定（如 source: "\${items}" 或 text: "\${amount}"），因为真实数据是动态变化的。`;
+2. **正确使用数据映射**：请参考 Amis 数据映射文档，灵活用 "\${variable}" 或 "\${a.b}"（链式取值）获取数据。
+3. **列表/数组数据源**：对于列表、表格、卡片等组件，**必须**使用 \`source\` 属性绑定数组路径（如 source: "\${rows}"）。请勿使用 \`data\` 属性直接绑定数组。
+4. **字段引用 vs 映射**：
+   - 定义组件字段名（如 Table 的 columns 或 Input 的 name）时，直接使用字段名字符串（如 name: "userName"）。
+   - 需要展示数据值（如 tpl, text, label 属性）时，才使用数据映射语法（如 tpl: "当前用户: \${userName}"）。
+5. **作用域与路径**：
+   - 列表项内部直接使用相对路径变量（如 "\${month}"）。
+   - 顶层数据使用完整路径（如 "\${summary.total}"）。
+6. **禁止硬编码**：所有业务数据必须通过 "\${...}" 绑定，严禁写入静态值。`;
   }
 
   if (simplifiedResults.length > 0) {

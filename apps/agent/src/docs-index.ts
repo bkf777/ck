@@ -47,7 +47,7 @@ interface InvertedIndex {
   [keyword: string]: Array<{
     path: string;
     score: number;
-    positions: "title" | "header" | "content"[];
+    positions: ("title" | "header" | "content")[];
   }>;
 }
 
@@ -372,7 +372,7 @@ export class DocsIndexer {
 
         const hit = hits.get(result.path)!;
         hit.score += result.score;
-        result.positions.forEach((pos) => hit.positions.push(pos));
+        
 
         // 从 headers 中提取相关锚点
         const entry = this.entries.get(result.path);
