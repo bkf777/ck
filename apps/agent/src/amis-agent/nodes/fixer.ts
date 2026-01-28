@@ -23,19 +23,29 @@ export async function fixer_node(
     temperature: 0.2,
   });
 
-  const prompt = `你是一个 JSON 修复专家。之前的任务生成了无效的 JSON。
+  const prompt = `你是一个 amis 配置修复专家。之前的生成结果未能通过验证。
 
 任务描述：${task.description}
 错误信息：${task.errorMessage}
-原始输出内容：
+
+原始生成内容：
 ${task.rawResult}
 
-要求：
-1. 请纠正 JSON 格式错误
-2. 确保符合 amis 规范
-3. 只返回修复后的 JSON 对象，不要有其他解释内容
+【可用数据上下文】
+${
+  state.processData && state.processData.dataStructure
+    ? `数据结构: ${JSON.stringify(state.processData.dataStructure, null, 2)}`
+    : "无数据上下文"
+}
+数据依赖: ${JSON.stringify(task.dataDependencies || [])}
 
-修复后的 JSON：`;
+修复指导：
+1. 如果是 JSON 格式错误，请修正语法（如闭合括号、引号）。
+2. 如果是"未包含必需的数据字段"错误，请修改配置，确保使用 \${variable} 语法正确引用了缺失的字段。
+3. 参考数据结构，确保绑定的路径正确。
+4. 只返回修复后的 JSON 对象，不要有其他解释内容。
+
+请输出修复后的 JSON：`;
 
   const response = await model.invoke([
     new SystemMessage({ content: "你是 JSON 修复专家" }),

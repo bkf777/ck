@@ -21,6 +21,8 @@ export async function planner_node(
     state.userRequirement ||
     (state.messages[state.messages.length - 1] as HumanMessage).content;
 
+  const processData = state.processData;
+
   // 检查是否有失败的任务导致的回退
   const failedTasks = (state.tasks || []).filter((t) => t.status === "failed");
   const isRetry = failedTasks.length > 0;
@@ -40,6 +42,13 @@ export async function planner_node(
   let prompt = `你是一个 amis 配置任务规划专家。请分析用户需求，将其拆分为可执行的子任务。
 
 用户需求：${userRequirement}`;
+
+  if (processData) {
+    prompt += `\n\n可用数据结构信息：
+描述: ${processData.dataMeta?.description || "无"}
+结构: ${JSON.stringify(processData.dataStructure, null, 2)}
+`;
+  }
 
   if (isRetry) {
     prompt += `
@@ -64,6 +73,7 @@ ${failedTasks
 - type: 任务类型（如 form-item-input-text, form-item-select, form-assembly, crud-table 等）
 - priority: 优先级（1=高，2=中，3=低）
 - docPaths: 留空数组（将在后续步骤由文档检索工具自动补全）
+- dataDependencies: 字符串数组，列出该任务需要使用的具体数据字段名（参考提供的结构数据），如果没有则留空
 - status: 状态（固定为 "pending"）
 
 要求：
@@ -72,7 +82,8 @@ ${failedTasks
 3. 最后一个任务应该是"组装"类型（如 form-assembly, page-assembly）以合成所有组件
 4. 任务描述要足够具体，便于后续工具进行文档检索
 5. 不要尝试预测或列举具体的文档路径，这会在后续步骤自动处理
-6. 最多生成5个任务
+6. 如果提供了数据结构，请务必在 dataDependencies 中明确指出每个任务用到的字段
+7. 最多生成5个任务
 
 请生成任务列表（JSON 数组格式）：`;
 

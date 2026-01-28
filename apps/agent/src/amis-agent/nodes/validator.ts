@@ -35,6 +35,28 @@ export async function validator_node(
   try {
     const json = parseJsonFromMarkdown(task.rawResult);
     
+    // 1. 基础结构验证
+    if (typeof json !== 'object' || json === null) {
+        throw new Error("生成的结果不是有效的 JSON 对象");
+    }
+    if (!json.type && !Array.isArray(json)) {
+        // 如果是数组可能是 body 内容，暂且允许；如果是对象必须有 type
+        throw new Error("生成的组件配置缺少必需的 'type' 字段");
+    }
+
+    // 2. 数据依赖验证 (Data Dependency Check)
+    const dataDeps = task.dataDependencies || [];
+    if (dataDeps.length > 0) {
+        const jsonStr = JSON.stringify(json);
+        const missingFields = dataDeps.filter(field => !jsonStr.includes(field));
+        
+        if (missingFields.length > 0) {
+            // 这是一个软性错误，我们记录警告，甚至可以拒绝通过
+            // 这里选择抛出错误，强迫进入 Fixer 进行修复
+            throw new Error(`生成配置未包含必需的数据字段: ${missingFields.join(", ")}。请确保使用了数据绑定语法（如 \${${missingFields[0]}}）。`);
+        }
+    }
+
     // 验证成功
     tasks[currentIndex].result = json;
     tasks[currentIndex].status = 'completed';

@@ -43,6 +43,96 @@ async function testPlanner() {
 }
 
 /**
+ * 测试 Planner Node (带数据依赖)
+ */
+async function testPlannerWithData() {
+  console.log("\n--- Testing Planner Node (With Data Dependencies) ---");
+  const state = createMockState({
+    userRequirement: "创建一个用户管理表格，展示姓名、邮箱和注册时间，并允许编辑邮箱",
+    processData: {
+      rawData: "",
+      dataStructure: {
+        users: [
+          {
+            id: 1,
+            name: "Alice",
+            email: "alice@example.com",
+            signedUpAt: "2023-01-01",
+          },
+          {
+            id: 2,
+            name: "Bob",
+            email: "bob@example.com",
+            signedUpAt: "2023-01-02",
+          },
+        ],
+      },
+      dataMeta: {
+        description: "用户列表数据",
+        schema: {},
+        type: "json",
+      },
+    },
+  });
+  const result = await planner_node(state, mockConfig);
+  console.log(
+    "✅ Planner Result Tasks:",
+    JSON.stringify(result.tasks, null, 2),
+  );
+  return result.tasks;
+}
+
+/**
+ * 测试 Planner Node (销售报表场景 - 自然语言数据提取后)
+ */
+async function testPlannerSales() {
+  console.log("\n--- Testing Planner Node (Sales Report Scenario) ---");
+  const state = createMockState({
+    userRequirement: "根据这些销售数据生成一个报表，并分析一下第一季度的趋势",
+    processData: {
+      rawData: "一月份销售额100万，二月份120万，三月份80万",
+      dataStructure: [
+        { month: "一月", amount: 100, unit: "万" },
+        { month: "二月", amount: 120, unit: "万" },
+        { month: "三月", amount: 80, unit: "万" },
+      ],
+      dataMeta: {
+        description: "2024年第一季度月度销售额",
+        schema: {},
+        type: "json",
+      },
+    },
+  });
+  const result = await planner_node(state, mockConfig);
+  console.log(
+    "✅ Planner Result Tasks:",
+    JSON.stringify(result.tasks, null, 2),
+  );
+
+  // 如果有任务，继续测试 Executor 以验证数据绑定
+  if (result.tasks && result.tasks.length > 0) {
+    console.log("\n--- Proceeding to Test Executor with Generated Tasks ---");
+    // 更新 state 的 tasks
+    state.tasks = result.tasks;
+    state.currentTaskIndex = 0;
+
+    // 模拟逐个执行任务
+    for (let i = 0; i < state.tasks.length; i++) {
+      state.currentTaskIndex = i;
+      const execResult = await executor_node(state, mockConfig);
+      // 更新任务结果
+      state.tasks = execResult.tasks;
+      
+      const task = state.tasks[i];
+      console.log(`\n✅ Task ${i + 1} Result (${task.type}):`);
+      console.log(task.rawResult);
+    }
+  }
+
+  return result.tasks;
+}
+
+/**
  * 测试 Docs Associate Node
  */
 async function testDocsAssociate() {
@@ -484,6 +574,12 @@ async function main() {
     switch (node) {
       case "planner":
         await testPlanner();
+        break;
+      case "planner-data":
+        await testPlannerWithData();
+        break;
+      case "planner-sales":
+        await testPlannerSales();
         break;
       case "docs":
         await testDocsAssociate();

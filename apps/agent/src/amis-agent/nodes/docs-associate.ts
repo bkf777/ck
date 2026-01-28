@@ -52,6 +52,12 @@ export async function docs_associate_node(
           
           // 2. 关键词匹配
           const keywords = ["form", "table", "chart", "crud", "list", "card", "tabs", "input", "select", "dialog"];
+          
+          // 如果有数据依赖，增加数据处理相关的文档权重
+          if (task.dataDependencies && task.dataDependencies.length > 0) {
+             keywords.push("tpl", "formula", "mapping", "service");
+          }
+
           keywords.forEach(kw => {
             if (searchStr.includes(kw) && fileName.includes(kw)) score += 5;
           });

@@ -16,6 +16,8 @@ export type Task = {
   rawResult?: string;
   retryCount?: number;
   errorMessage?: string;
+  // 数据依赖（标识该任务应使用哪些结构化数据字段）
+  dataDependencies?: string[];
   // 子任务列表（用于可复用 Planner 的二次拆解）
   subtasks?: Task[];
   // 文档命中信息（供上下文注入与证据链记录）

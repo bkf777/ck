@@ -97,26 +97,46 @@ export async function executor_node(
   // 对已有结果进行精简，避免 Context 过大
   const simplifiedResults = existingResults.map(getLightweightSchema);
 
+  // 获取结构化数据信息
+  const processData = state.processData;
+
   // 构建提示词
-  const prompt = `你是 amis 配置生成专家。请根据任务描述生成符合规范的 amis JSON 配置。
+  let prompt = `你是 amis 配置生成专家。请根据任务描述生成符合规范的 amis JSON 配置。
 
 任务描述：${task.description}
 任务类型：${task.type}
 
-用户整体需求：${state.userRequirement}
+用户整体需求：${state.userRequirement}`;
 
-${
-  simplifiedResults.length > 0
-    ? `已生成的组件（摘要）：
+  // 注入数据上下文
+  if (processData && processData.dataStructure) {
+    prompt += `\n\n【可用数据上下文】
+数据描述: ${processData.dataMeta?.description || "无"}
+数据结构样本: 
+${JSON.stringify(processData.dataStructure, null, 2)}
+
+【数据绑定要求】
+1. 当前任务依赖的数据字段: ${
+      task.dataDependencies && task.dataDependencies.length > 0
+        ? JSON.stringify(task.dataDependencies)
+        : "未指定（请根据上下文推断）"
+    }
+2. 请仔细分析上述数据结构，找到字段的确切路径。
+3. 如果字段在数组中（如 "rows": [{ "month":... }]），请确保组件的 source/data 属性正确绑定到数组路径（如 "\${rows}"），内部字段使用相对路径（如 "\${month}"）。
+4. 如果是顶层字段，请使用绝对路径绑定（如 "\${summary.total}"）。
+5. 务必确保生成的 amis 配置中的变量绑定语法（\${variable}）与提供的数据结构完全一致。
+6. 【禁止硬编码】：严禁将具体的数据值（如 100, 120, "一月"）直接写入配置中。必须始终使用数据绑定（如 source: "\${items}" 或 text: "\${amount}"），因为真实数据是动态变化的。`;
+  }
+
+  if (simplifiedResults.length > 0) {
+    prompt += `\n\n已生成的组件（摘要）：
 ${JSON.stringify(simplifiedResults, null, 2)}
 
-请确保新组件与已有组件能够正确组合。`
-    : ""
-}
+请确保新组件与已有组件能够正确组合。`;
+  }
 
-${
-  state.contextDocuments && state.contextDocuments.length > 0
-    ? `以下是与本任务相关的文档摘录（供参考）：\n${state.contextDocuments
+  if (state.contextDocuments && state.contextDocuments.length > 0) {
+    prompt += `\n\n以下是与本任务相关的文档摘录（供参考）：\n${state.contextDocuments
         .slice(0, 3)
         .map(
           (d, i) =>
@@ -126,9 +146,10 @@ ${
               .slice(0, 1)
               .join("\n")}`,
         )
-        .join("\n\n")}\n请遵循文档规范进行配置。`
-    : ""
-}
+        .join("\n\n")}\n请遵循文档规范进行配置。`;
+  }
+
+  prompt += `
 
 要求：
 1. 只返回 JSON 对象，不要有其他内容
