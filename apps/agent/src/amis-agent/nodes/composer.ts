@@ -1,6 +1,6 @@
 import { RunnableConfig } from "@langchain/core/runnables";
 import { createChatModel } from "../../utils/model-factory.js";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
 import { parseJsonFromMarkdown } from "../utils.js";
@@ -80,6 +80,7 @@ ${JSON.stringify(processData.dataStructure, null, 2)}`;
       return {
         schema: finalJson,
         executionLog: [...(state.executionLog || []), event],
+        messages: [new AIMessage({ content: "已为您生成 Amis 页面配置。" })],
       };
     } catch (error) {
       const err = error as Error;

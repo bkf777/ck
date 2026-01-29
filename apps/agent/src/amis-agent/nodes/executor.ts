@@ -169,7 +169,6 @@ ${JSON.stringify(simplifiedResults, null, 2)}
   try {
     response = await modelWithTools.invoke(
       [new HumanMessage({ content: prompt })],
-      config,
     );
   } catch (e) {
     console.error("FATAL: Executor Node LLM invoke failed", e);

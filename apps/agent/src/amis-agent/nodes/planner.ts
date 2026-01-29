@@ -151,7 +151,7 @@ ${failedTasks
     response = await modelWithTools.invoke([
       new SystemMessage({ content: systemPrompt }),
       new HumanMessage({ content: promptText }),
-    ], config);
+    ]);
 
     // Extract tool calls
     if (response.tool_calls && response.tool_calls.length > 0) {
