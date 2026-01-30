@@ -81,50 +81,79 @@ export async function planner_node(
   });
 
   // 构建提示词
-  let promptText = `你是一个 amis 配置任务规划专家。请分析用户需求，将其拆分为可执行的子任务。
+  let promptText = `你是一个 amis 配置任务规划专家。请分析用户需求，将其拆分为 1-3 个核心任务。
+你的目标是生成 "Coarse-grained" (粗粒度) 的任务，确保 Executor 可以一次性生成完整的组件块（如整个表单、整个列表），而不是零散的字段。
 
 用户需求：${userRequirement}`;
 
   if (processData) {
     promptText += `\n\n可用数据结构信息：
 描述: ${processData.dataMeta?.description || "无"}
-结构: ${JSON.stringify(processData.dataStructure, null, 2)},
-
-
-你需要充分理解用户的需求，然后根据数据结构信息生成任务列表。
+结构: ${JSON.stringify(processData.dataStructure, null, 2)}
 `;
   }
 
+  // 注入文档索引以辅助类型选择
+  promptText += `\n\n【Amis 组件/文档索引】
+请根据需求选择最匹配的 type（优先使用以下关键词）：
+
+1. 页面/容器类
+   - page (页面)
+   - crud (增删改查列表/表格)
+   - form (表单容器)
+   - wizard (向导)
+   - dialog (弹窗)
+   - drawer (抽屉)
+   - service (数据服务容器)
+
+2. 功能/展示类
+   - chart (图表)
+   - cards (卡片列表)
+   - tpl (模板/展示)
+   - video (视频)
+   - audio (音频)
+   - tasks (任务操作栏)
+
+3. 布局类
+   - flex (Flex布局)
+   - grid (网格布局)
+   - container (容器)
+
+⚠️ 注意：尽量聚合任务！例如用户需要一个"包含姓名、年龄的查询表单"，请生成一个 type="form" 的任务，描述中包含所有字段要求，而不是生成两个 type="input-text" 的任务。
+`;
+
   if (isRetry) {
     promptText += `
-
-🚨 注意：之前的任务执行失败了，请根据错误信息调整规划。
+\n🚨 注意：之前的任务执行失败了，请根据错误信息调整规划。
 失败的任务：
 ${failedTasks
   .map((t) => `- 任务: ${t.description}\n  错误: ${t.errorMessage}`)
   .join("\n")}
 
-请重新生成任务列表，尝试：
-1. 将失败的复杂任务拆分为更简单的子任务
-2. 修改任务描述，提供更明确的指导
-3. 确保任务顺序逻辑正确`;
+策略调整：
+1. 如果是因为任务过于复杂导致失败，尝试适当拆分，但不要拆得太细。
+2. 检查描述是否缺少关键信息（如数据绑定路径）。
+`;
   }
 
   promptText += `
 请生成任务列表，每个任务包含：
-- id: 任务唯一标识（如 task-1, task-2）
-- description: 任务描述（清晰说明要实现什么，包括数据绑定。任务必须是可执行的生成amis配置）
-- type: 任务类型（如 form-item-input-text, form-item-select, form-assembly, crud-table 等）
-- priority: 优先级（1=高，2=中，3=低）
-- dataDependencies: 字符串数组，列出该任务需要使用的具体数据字段名
-- status: 状态（固定为 "pending"）
+- id: 任务唯一标识（如 task-1）
+- description: 详细的任务描述。
+  - 对于表单/列表：列出所有需要的字段、按钮和交互逻辑。
+  - 包含数据绑定要求（如 "使用 \${rows} 作为数据源"）。
+  - 必须包含"做什么"和"怎么做"的上下文。
+- type: 核心组件类型（见上文索引，如 form, crud, page, chart 等）。不要使用 form-item-xxx 这种细粒度类型，除非它是独立的。
+- priority: 优先级
+- dataDependencies: 需要的数据字段
+- status: "pending"
 
-要求：
-1. 按照执行顺序排列任务
-2. 最后一个任务应该是"组装"类型（如 form-assembly, page-assembly）
-3. 任务描述要足够具体
-4. 必须调用 generate_amis_tasks 工具来输出结果
-5. 最多生成5个任务`;
+关键规则：
+1. **少即是多**：通常 1-2 个任务足以描述一个页面区域（例如：一个任务负责"查询表单"，一个任务负责"数据列表"）。
+2. **完整性**：任务描述必须包含 Executor 生成该组件所需的所有信息（字段名、标签、类型、API 绑定等）。
+3. **协作性**：如果有多个任务，确保描述中提及它们的关系（例如 "位于查询表单下方"）。
+4. **组装**：如果涉及复杂布局，最后一个任务可以是 "page-assembly" (组装)。
+5. 必须调用 generate_amis_tasks 工具。`;
 
   const systemPrompt = "你是一个 amis 页面设计专家，负责将用户需求拆解为具体的实施任务。你必须调用 generate_amis_tasks 工具。";
 
@@ -227,10 +256,6 @@ ${failedTasks
     ];
   }
 
-  console.log(`✅ [Planner] 生成了 ${tasks.length} 个任务`);
-  tasks.forEach((task, index) => {
-    console.log(`   ${index + 1}. ${task.description} (${task.type})`);
-  });
 
   // 添加执行日志
   const event: ExecutionEvent = {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AmisGlobalScript from "../components/AmisGlobalScript";
 
 import { CopilotKit } from "@copilotkit/react-core";
 import "./globals.css";
@@ -17,9 +18,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={"antialiased"}>
-        <CopilotKit runtimeUrl="/api/copilotkit" agent="starterAgent">
-          {children}
-        </CopilotKit>
+        <AmisGlobalScript />
+        {children}
       </body>
     </html>
   );

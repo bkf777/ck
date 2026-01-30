@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Script from "next/script";
+import { useEffect, useRef, useState, useCallback } from "react";
+
 // ... imports
 import { CopilotSidebar, CopilotChat } from "@copilotkit/react-ui";
 import { Sun, Moon, Monitor } from "lucide-react";
@@ -299,7 +299,7 @@ type AmisInstance = {
   updateProps: (props: Record<string, unknown>) => void;
 };
 
-function AmisAgentChat() {
+export default function AmisAgentChat() {
   const { theme } = { theme: "light" }; // Simple theme mock or use a real hook if available
 
   useCoAgentStateRender<AmisAgentState>({
@@ -336,7 +336,6 @@ function AmisAgentChat() {
 
   return (
     <CopilotSidebar
-      className="h-full w-full"
       labels={{
         initial:
           "Hi, I'm your Amis AI Agent! I can help you design and modify this page. Try saying 'Add a login form' or 'Change the title'.",
@@ -599,7 +598,9 @@ function AmisAgentChat() {
           message: "make the form use horizontal layout",
         },
       ]}
-    />
+    >
+      <AmisEditorPage />
+    </CopilotSidebar>
   );
 }
 
@@ -640,7 +641,7 @@ function ThemeSwitcher({
   );
 }
 
-export default function AmisEditorPage() {
+function AmisEditorPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const microAppRef = useRef<any>(null);
   const [isClient, setIsClient] = useState(false);
@@ -648,6 +649,30 @@ export default function AmisEditorPage() {
   const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">(
     "system",
   );
+
+  useEffect(() => {
+    // Check if AMIS is already available
+    if ((window as any).amisRequire) {
+      setSdkReady(true);
+    }
+
+    // Listen for the ready event
+    const onAmisReady = () => setSdkReady(true);
+    window.addEventListener("amis-ready", onAmisReady);
+
+    // Safety check interval
+    const interval = setInterval(() => {
+      if ((window as any).amisRequire) {
+        setSdkReady(true);
+        clearInterval(interval);
+      }
+    }, 200);
+
+    return () => {
+      window.removeEventListener("amis-ready", onAmisReady);
+      clearInterval(interval);
+    };
+  }, []);
 
   // 在客户端挂载时从 localStorage 恢复用户偏好
   useEffect(() => {
@@ -710,12 +735,6 @@ export default function AmisEditorPage() {
       userRequirement: "",
     },
   });
-  console.log(state);
-
-  useCopilotReadable({
-    description: "当前 amis 页面 schema",
-    value: state.schema || DEFAULT_SCHEMA,
-  });
 
   useFrontendTool(
     {
@@ -734,7 +753,7 @@ export default function AmisEditorPage() {
         return "schema 已更新";
       },
     },
-    [state],
+    [],
   );
 
   // 监听 agent 状态变化（用于调试和 UI 更新）
@@ -755,14 +774,9 @@ export default function AmisEditorPage() {
     }
   }, [sdkReady, isClient]);
 
-  useEffect(() => {
-    if (state.schema) {
-      updateSchema(state.schema as Record<string, unknown>);
-    }
-  }, [state.schema]);
-
   // 当 schema 更新时重新渲染
-  function updateSchema(newSchema: Record<string, unknown>) {
+  // 当 schema 更新时重新渲染
+  const updateSchema = useCallback((newSchema: Record<string, unknown>) => {
     console.log("准备更新 schema:", newSchema);
     if (ref.current && typeof ref.current.updateSchema === "function") {
       try {
@@ -774,7 +788,7 @@ export default function AmisEditorPage() {
     } else {
       console.warn("⚠️ amis 实例未就绪或 updateSchema 方法不可用");
     }
-  }
+  }, []);
 
   if (!isClient) {
     return (
@@ -786,22 +800,6 @@ export default function AmisEditorPage() {
 
   return (
     <>
-      <link rel="stylesheet" href="/amis/sdk.css" />
-      <link rel="stylesheet" href="/amis/helper.css" />
-      <link rel="stylesheet" href="/amis/iconfont.css" />
-
-      <Script
-        src="/amis/sdk.js"
-        strategy="afterInteractive"
-        onLoad={() => {
-          console.log("Amis SDK loaded");
-          setSdkReady(true);
-        }}
-        onError={(e) => {
-          console.error("Failed to load Amis SDK:", e);
-        }}
-      />
-
       <main className="relative flex">
         <div className="flex-1 h-full relative z-0">
           <div
@@ -809,14 +807,8 @@ export default function AmisEditorPage() {
             id="amis-app-container"
             className="h-full w-full"
           />
-          <AmisAgentChat />
           <ThemeSwitcher current={themeMode} onChange={setThemeMode} />
         </div>
-
-        {/* Custom Sidebar / Chat Area */}
-        {/* <div className="w-[450px] h-full border-l border-gray-200 bg-white z-10 shadow-xl flex-shrink-0"> */}
-
-        {/* </div> */}
       </main>
     </>
   );

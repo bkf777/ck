@@ -88,8 +88,6 @@ export async function executor_node(
     temperature: 0.3,
   });
 
-  console.log(state.copilotkit?.actions);
-
   // 移除工具绑定，强制模型只生成文本 JSON
   // 之前的绑定导致模型尝试调用工具而不是生成配置，导致 rawResult 为空引发死循环
   const modelWithTools = model;
