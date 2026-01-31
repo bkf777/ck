@@ -23,7 +23,7 @@ let loadMicroApp: any;
 
 const DEFAULT_SCHEMA = {
   type: "page",
-  // title: "AI Low-Code Introduction",
+  title: "AMIS Agent 使用教程",
   className:
     "bg-white dark:bg-slate-950 font-sans h-full transition-colors duration-300",
   cssVars: {
@@ -40,250 +40,810 @@ const DEFAULT_SCHEMA = {
     html.dark .cxd-TextControl-input:focus { border-color: #6366f1 !important; }
     html.dark .cxd-Button--default { background-color: #1e293b !important; border-color: #334155 !important; color: #f8fafc !important; }
     html.dark .cxd-Button--default:hover { background-color: #334155 !important; }
+    html.dark .cxd-Tabs-link { color: #f8fafc !important; }
+    html.dark .cxd-Tabs-link.is-active { background-color: #6366f1 !important; }
   `,
-  body: [
-    // Hero Section
-    {
-      type: "wrapper",
-      className:
-        "bg-slate-50 dark:bg-slate-900 relative overflow-hidden pb-20 pt-10 transition-colors duration-300",
-      body: [
-        {
-          type: "tpl",
-          tpl: `
-            <div class="relative z-10 text-center max-w-4xl mx-auto px-4">
-              <div class="inline-block mb-4 px-4 py-1.5 rounded-full bg-linear-to-r from-violet-100 to-fuchsia-100 text-violet-700 font-semibold text-sm border border-violet-200 shadow-sm">
-                ✨ Next Generation UI Builder
-              </div>
-              <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight text-amber-200! dark:text-white mb-6 leading-tight">
-                Build <span class="bg-clip-text text-transparent bg-linear-to-r from-violet-600 via-fuchsia-500 to-pink-500">Amis Pages</span> <br/>
-                with <span class="italic font-serif text-slate-700 dark:text-slate-200">Natural Language</span>
-              </h1>
-              <p class="text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-                Describe your dream interface, and watch our AI agent instantly weave it into reality. No complex coding required—just pure creativity.
-              </p>
-              <div class="flex gap-4 justify-center">
-                 <button class="px-8 py-4 bg-linear-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl font-bold text-lg shadow-xl shadow-violet-200 dark:shadow-none hover:shadow-2xl hover:scale-105 transition-all transform flex items-center gap-2 border border-transparent">
-                   <span>Start Building</span> <i class="fa fa-arrow-right"></i>
-                 </button>
-                 <button class="px-8 py-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-lg hover:bg-slate-50 dark:hover:bg-slate-750 transition-all shadow-sm hover:shadow-md flex items-center gap-2">
-                   <i class="fa fa-play-circle text-violet-500"></i> <span>Watch Demo</span>
-                 </button>
-              </div>
-            </div>
-            
-            <!-- Decorative Blobs -->
-            <div class="absolute top-0 left-0 w-96 h-96 bg-purple-300 dark:bg-purple-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-30 dark:opacity-20 animate-blob"></div>
-            <div class="absolute top-0 right-0 w-96 h-96 bg-yellow-300 dark:bg-blue-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-30 dark:opacity-20 animate-blob animation-delay-2000"></div>
-            <div class="absolute -bottom-8 left-20 w-96 h-96 bg-pink-300 dark:bg-fuchsia-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-30 dark:opacity-20 animate-blob animation-delay-4000"></div>
-          `,
-        },
-      ],
-    },
+body: {
+    type: "tabs",
+    tabsMode: "line",
+    tabs: [
+      // Tab 1: 什么是 AMIS Agent?
+      {
+        title: "💡 什么是 AMIS Agent?",
+        body: {
+          type: "wrapper",
+          className: "p-6 max-w-5xl mx-auto",
+          body: [
+            {
+              type: "tpl",
+              tpl: `
+                <div class="mb-8">
+                  <h2 class="text-3xl font-bold text-slate-800 dark:text-white mb-4">欢迎使用 AMIS Agent 🤖</h2>
+                  <p class="text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
+                    AMIS Agent 是一个基于 AI 的低代码页面生成工具，让你可以通过自然语言描述来创建复杂的前端页面。
+                  </p>
+                </div>
+              `
+            },
+            {
+              type: "grid",
+              columns: [
+                {
+                  md: 6,
+                  body: {
+                    type: "card",
+                    header: {
+                      title: "🎯 核心特性",
+                      className: "font-bold"
+                    },
+                    body: {
+                      type: "list",
+                      listItem: {
+                        body: [
+                          {
+                            type: "tpl",
+                            tpl: '<span class="text-sm text-slate-700 dark:text-slate-200">${body}</span>'
+                          }
+                        ]
+                      },
+                      source: [
+                        { body: "✨ 自然语言交互：用中文描述需求即可生成页面" },
+                        { body: "🚀 即时生成：秒级响应，实时预览" },
+                        { body: "🎨 智能样式：自动应用现代化设计" },
+                        { body: "📦 AMIS 组件库：支持 100+ 组件类型" },
+                        { body: "🔄 迭代优化：可以反复修改和调整" }
+                      ]
+                    }
+                  }
+                },
+                {
+                  md: 6,
+                  body: {
+                    type: "card",
+                    header: {
+                      title: "🛠️ 工作原理",
+                      className: "font-bold"
+                    },
+                    body: {
+                      type: "steps",
+                      status: "finish",
+                      steps: [
+                        { title: "描述需求", description: "告诉 AI 你想要什么" },
+                        { title: "AI 分析", description: "理解需求并规划页面结构" },
+                        { title: "生成代码", description: "输出 AMIS JSON Schema" },
+                        { title: "实时预览", description: "立即看到渲染效果" }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              type: "alert",
+              level: "info",
+              className: "mt-6",
+              body: "💡 提示：点击右侧的 Copilot 图标打开聊天窗口，开始你的第一个 AI 页面创建之旅！"
+            }
+          ]
+        }
+      },
 
-    // Features Grid
-    {
-      type: "wrapper",
-      className: "py-20 px-4 max-w-7xl mx-auto",
-      body: [
-        {
-          type: "tpl",
-          tpl: "<div class='text-center mb-16'><h2 class='text-3xl font-bold text-slate-800 dark:text-slate-100 mb-4'>Why Choose AI Low-Code?</h2><p class='text-slate-500 dark:text-slate-400 max-w-2xl mx-auto'>Experience the perfect fusion of development speed and design flexibility.</p></div>",
-        },
-        {
-          type: "grid",
-          columns: [
+      // Tab 2: 快速开始
+      {
+        title: "🚀 快速开始",
+        body: {
+          type: "wrapper",
+          className: "p-6 max-w-5xl mx-auto",
+          body: [
             {
-              md: 4,
-              body: [
-                {
-                  type: "card",
-                  className:
-                    "h-full border-0 shadow-lg shadow-slate-100 dark:shadow-slate-900/50 hover:shadow-xl transition-all hover:-translate-y-2 rounded-2xl p-6 bg-white dark:bg-slate-800 group",
-                  body: [
-                    {
-                      type: "tpl",
-                      className: "flex flex-col h-full",
-                      tpl: `
-                        <div class="w-14 h-14 rounded-2xl bg-linear-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-2xl mb-6 shadow-lg shadow-blue-200 dark:shadow-blue-900/50 group-hover:scale-110 transition-transform">
-                          <i class="fa fa-magic"></i>
-                        </div>
-                        <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-3">Instant Generation</h3>
-                        <p class="text-slate-500 dark:text-slate-400 leading-relaxed">Turn "Login Form" or "Dashboard" into fully functional code in seconds. The fastest way from idea to UI.</p>
-                      `,
-                    },
-                  ],
-                },
-              ],
+              type: "tpl",
+              tpl: `
+                <div class="mb-6">
+                  <h2 class="text-3xl font-bold text-slate-800 dark:text-white mb-4">创建你的第一个页面</h2>
+                  <p class="text-slate-600 dark:text-slate-300">
+                    让我们通过几个简单的例子，学习如何使用 AMIS Agent。
+                  </p>
+                </div>
+              `
             },
             {
-              md: 4,
-              body: [
-                {
-                  type: "card",
-                  className:
-                    "h-full border-0 shadow-lg shadow-slate-100 dark:shadow-slate-900/50 hover:shadow-xl transition-all hover:-translate-y-2 rounded-2xl p-6 bg-white dark:bg-slate-800 group",
-                  body: [
-                    {
-                      type: "tpl",
-                      className: "flex flex-col h-full",
-                      tpl: `
-                        <div class="w-14 h-14 rounded-2xl bg-linear-to-br from-fuchsia-400 to-pink-600 flex items-center justify-center text-white text-2xl mb-6 shadow-lg shadow-pink-200 group-hover:scale-110 transition-transform">
-                          <i class="fa fa-paint-brush"></i>
-                        </div>
-                        <h3 class="text-xl font-bold text-slate-800 mb-3">Adaptive Styling</h3>
-                        <p class="text-slate-500 leading-relaxed">Our AI understands aesthetics. It applies modern, beautiful styles using Tailwind and Amis best practices automatically.</p>
-                      `,
-                    },
-                  ],
-                },
-              ],
-            },
-            {
-              md: 4,
-              body: [
-                {
-                  type: "card",
-                  className:
-                    "h-full border-0 shadow-lg shadow-slate-100 dark:shadow-slate-900/50 hover:shadow-xl transition-all hover:-translate-y-2 rounded-2xl p-6 bg-white dark:bg-slate-800 group",
-                  body: [
-                    {
-                      type: "tpl",
-                      className: "flex flex-col h-full",
-                      tpl: `
-                        <div class="w-14 h-14 rounded-2xl bg-linear-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white text-2xl mb-6 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
-                          <i class="fa fa-code"></i>
-                        </div>
-                        <h3 class="text-xl font-bold text-slate-800 mb-3">Developer Friendly</h3>
-                        <p class="text-slate-500 leading-relaxed">Not just a toy. Export clean, maintainable JSON schema. Seamlessly integrate into your existing Amis projects.</p>
-                      `,
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-
-    // Interactive Demo Visualizer
-    {
-      type: "wrapper",
-      className:
-        "bg-slate-900 dark:bg-black text-white rounded-3xl mx-4 md:mx-10 mb-20 p-8 md:p-16 relative overflow-hidden border border-slate-800 dark:border-slate-800 shadow-2xl",
-      body: [
-        {
-          type: "grid",
-          columns: [
-            {
-              md: 6,
-              columnClassName: "flex flex-col justify-center relative z-10",
+              type: "panel",
+              title: "示例 1：创建登录表单",
+              className: "mb-4",
               body: [
                 {
                   type: "tpl",
-                  tpl: `
-                                <div class="inline-block px-3 py-1 bg-white/10 rounded-full text-sm font-medium mb-6 backdrop-blur-md">🤖 Interactive Workflow</div>
-                                <h2 class="text-4xl md:text-5xl font-bold mb-6 dark:text-white!">Chat with your UI</h2>
-                                <p class="text-slate-300 text-lg mb-8 leading-relaxed dark:text-slate-200!">
-                                    Don't struggle with documentation. Just tell the Copilot what you need. 
-                                    Modify layouts, change colors, or bind data sources using natural conversation.
-                                </p>
-                                <ul class="space-y-4 mb-8">
-                                    <li class="flex items-center gap-3">
-                                        <span class="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-black text-xs"><i class="fa fa-check"></i></span>
-                                        <span class="text-slate-200">Context-aware modifications</span>
-                                    </li>
-                                    <li class="flex items-center gap-3">
-                                        <span class="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-black text-xs"><i class="fa fa-check"></i></span>
-                                        <span class="text-slate-200">Instant preview & feedback loop</span>
-                                    </li>
-                                    <li class="flex items-center gap-3">
-                                        <span class="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-black text-xs"><i class="fa fa-check"></i></span>
-                                        <span class="text-slate-200">Access to all Amis components</span>
-                                    </li>
-                                </ul>
-                             `,
+                  className: "mb-3",
+                  tpl: '<p class="text-sm text-slate-700 dark:text-slate-300">在 Copilot 中输入以下内容：</p>'
                 },
-              ],
-            },
-            {
-              md: 6,
-              columnClassName: "relative z-10 mt-10 md:mt-0",
-              body: [
                 {
-                  type: "panel",
-                  className:
-                    "bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-4 shadow-2xl skew-y-1 transform transition hover:skew-y-0 duration-500",
+                  type: "code",
+                  language: "text",
+                  value: "创建一个登录表单，包含用户名、密码输入框和登录按钮"
+                },
+                {
+                  type: "divider"
+                },
+                {
+                  type: "tpl",
+                  className: "mb-2",
+                  tpl: '<p class="text-sm font-semibold text-slate-700 dark:text-slate-300">AI 会生成类似这样的表单：</p>'
+                },
+                {
+                  type: "form",
+                  mode: "horizontal",
+                  title: "用户登录",
                   body: [
                     {
-                      type: "tpl",
-                      tpl: "<div class='flex items-center gap-2 mb-4 border-b border-white/10 pb-2'><div class='w-3 h-3 rounded-full bg-red-500'></div><div class='w-3 h-3 rounded-full bg-yellow-500'></div><div class='w-3 h-3 rounded-full bg-green-500'></div><div class='ml-auto text-xs text-slate-400'>Preview</div></div>",
+                      type: "input-text",
+                      name: "username",
+                      label: "用户名",
+                      placeholder: "请输入用户名",
+                      required: true
                     },
                     {
-                      type: "form",
-                      title: "User Registration",
-                      mode: "horizontal",
-                      className: "bg-white dark:bg-slate-800 rounded-lg p-6",
-                      body: [
-                        {
-                          type: "input-text",
-                          name: "name",
-                          label: "Full Name",
-                          placeholder: "e.g. John Doe",
-                        },
-                        {
-                          type: "input-email",
-                          name: "email",
-                          label: "Email Address",
-                          placeholder: "john@example.com",
-                        },
-                        {
-                          type: "input-password",
-                          name: "password",
-                          label: "Password",
-                        },
-                        {
-                          type: "submit",
-                          label: "Create Account",
-                          level: "primary",
-                          className: "w-full bg-blue-600 border-0",
-                        },
-                      ],
+                      type: "input-password",
+                      name: "password",
+                      label: "密码",
+                      placeholder: "请输入密码",
+                      required: true
                     },
-                  ],
-                },
-              ],
+                    {
+                      type: "submit",
+                      label: "登录",
+                      level: "primary"
+                    }
+                  ]
+                }
+              ]
             },
-          ],
-        },
-        // Background glow
-        {
-          type: "tpl",
-          tpl: "<div class='absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/4 w-[600px] h-[600px] bg-linear-to-br from-violet-600 to-fuchsia-600 rounded-full blur-[100px] opacity-20'></div>",
-        },
-      ],
-    },
+            {
+              type: "panel",
+              title: "示例 2：创建数据表格",
+              className: "mb-4",
+              body: [
+                {
+                  type: "tpl",
+                  className: "mb-3",
+                  tpl: '<p class="text-sm text-slate-700 dark:text-slate-300">尝试这个指令：</p>'
+                },
+                {
+                  type: "code",
+                  language: "text",
+                  value: "创建一个用户列表表格，显示姓名、邮箱、状态和操作按钮"
+                },
+                {
+                  type: "divider"
+                },
+                {
+                  type: "tpl",
+                  className: "mb-2",
+                  tpl: '<p class="text-sm font-semibold text-slate-700 dark:text-slate-300">生成的表格示例：</p>'
+                },
+                {
+                  type: "table",
+                  data: {
+                    items: [
+                      { id: 1, name: "张三", email: "zhang@example.com", status: "active" },
+                      { id: 2, name: "李四", email: "li@example.com", status: "inactive" },
+                      { id: 3, name: "王五", email: "wang@example.com", status: "active" }
+                    ]
+                  },
+                  columns: [
+                    { name: "name", label: "姓名" },
+                    { name: "email", label: "邮箱" },
+                    {
+                      name: "status",
+                      label: "状态",
+                      type: "status",
+                      map: {
+                        "active": { label: "活跃", status: "success" },
+                        "inactive": { label: "未激活", status: "warning" }
+                      }
+                    },
+                    {
+                      type: "operation",
+                      label: "操作",
+                      buttons: [
+                        { label: "编辑", type: "button", level: "link" },
+                        { label: "删除", type: "button", level: "link", className: "text-red-500" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: "alert",
+              level: "success",
+              body: "🎉 提示：你可以随时要求 AI 修改已生成的内容，比如「把表单改成垂直布局」或「给表格添加分页功能」。"
+            }
+          ]
+        }
+      },
 
-    // Footer
-    {
-      type: "tpl",
-      className:
-        "bg-slate-50 dark:bg-slate-900 py-12 border-t border-slate-200 dark:border-slate-800 text-center transition-colors duration-300",
-      tpl: `
-        <div>
-            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mb-2">Ready to reshape your workflow?</h3>
-            <p class="text-slate-500 dark:text-slate-400 mb-6">Join the future of frontend development today.</p>
-            <div class="flex justify-center gap-4 text-slate-400">
-                <i class="fa fa-twitter hover:text-blue-400 cursor-pointer transition"></i>
-                <i class="fa fa-github hover:text-slate-800 dark:hover:text-white cursor-pointer transition"></i>
-                <i class="fa fa-youtube hover:text-red-500 cursor-pointer transition"></i>
-            </div>
-            <p class="text-slate-400 text-sm mt-8">© 2026 CopilotKit Amis Agent. All rights reserved.</p>
-        </div>
-       `,
-    },
-  ],
+      // Tab 3: 进阶技巧
+      {
+        title: "⚡ 进阶技巧",
+        body: {
+          type: "wrapper",
+          className: "p-6 max-w-5xl mx-auto",
+          body: [
+            {
+              type: "tpl",
+              tpl: `
+                <div class="mb-6">
+                  <h2 class="text-3xl font-bold text-slate-800 dark:text-white mb-4">掌握高级功能</h2>
+                  <p class="text-slate-600 dark:text-slate-300">
+                    了解如何充分利用 AMIS Agent 的强大功能。
+                  </p>
+                </div>
+              `
+            },
+            {
+              type: "collapse",
+              accordion: false,
+              body: [
+                {
+                  title: "📋 复杂表单设计",
+                  body: {
+                    type: "wrapper",
+                    body: [
+                      {
+                        type: "tpl",
+                        tpl: '<p class="text-sm mb-2">你可以创建包含多种控件的复杂表单：</p>'
+                      },
+                      {
+                        type: "list",
+                        listItem: {
+                          body: [{ type: "tpl", tpl: '<span class="text-sm">${body}</span>' }]
+                        },
+                        source: [
+                          { body: "• 日期/时间选择器：input-date, input-datetime" },
+                          { body: "• 文件上传：input-file, input-image" },
+                          { body: "• 富文本编辑器：input-rich-text" },
+                          { body: "• 级联选择：select (多级数据)" },
+                          { body: "• 动态表单：combo (可添加/删除行)" }
+                        ]
+                      },
+                      {
+                        type: "code",
+                        language: "text",
+                        className: "mt-3",
+                        value: "示例指令：创建一个注册表单，包含姓名、出生日期、头像上传、省市区三级联动选择"
+                      }
+                    ]
+                  }
+                },
+                {
+                  title: "📊 数据可视化",
+                  body: {
+                    type: "wrapper",
+                    body: [
+                      {
+                        type: "tpl",
+                        tpl: '<p class="text-sm mb-2">支持多种图表类型：</p>'
+                      },
+                      {
+                        type: "grid",
+                        columns: [
+                          {
+                            md: 6,
+                            body: {
+                              type: "list",
+                              listItem: {
+                                body: [{ type: "tpl", tpl: '<span class="text-sm">${body}</span>' }]
+                              },
+                              source: [
+                                { body: "📈 折线图 (line chart)" },
+                                { body: "📊 柱状图 (bar chart)" },
+                                { body: "🥧 饼图 (pie chart)" }
+                              ]
+                            }
+                          },
+                          {
+                            md: 6,
+                            body: {
+                              type: "list",
+                              listItem: {
+                                body: [{ type: "tpl", tpl: '<span class="text-sm">${body}</span>' }]
+                              },
+                              source: [
+                                { body: "🌍 地图 (map)" },
+                                { body: "🎯 仪表盘 (gauge)" },
+                                { body: "📉 雷达图 (radar)" }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        type: "code",
+                        language: "text",
+                        className: "mt-3",
+                        value: "示例指令：创建一个销售数据仪表板，包含本月销售额趋势折线图和各产品销量饼图"
+                      }
+                    ]
+                  }
+                },
+                {
+                  title: "🎯 条件显示与联动",
+                  body: {
+                    type: "wrapper",
+                    body: [
+                      {
+                        type: "tpl",
+                        tpl: '<p class="text-sm mb-2">让页面动起来：</p>'
+                      },
+                      {
+                        type: "list",
+                        listItem: {
+                          body: [{ type: "tpl", tpl: '<span class="text-sm">${body}</span>' }]
+                        },
+                        source: [
+                          { body: "✓ 使用 visibleOn 控制组件显示/隐藏" },
+                          { body: "✓ 使用 disabledOn 动态禁用组件" },
+                          { body: "✓ 使用 service 组件加载远程数据" },
+                          { body: "✓ 通过 onChange 事件触发其他组件更新" }
+                        ]
+                      },
+                      {
+                        type: "code",
+                        language: "text",
+                        className: "mt-3",
+                        value: '示例指令：创建一个表单，当用户选择「其他」选项时，显示一个额外的文本输入框'
+                      }
+                    ]
+                  }
+                },
+                {
+                  title: "🎨 样式定制",
+                  body: {
+                    type: "wrapper",
+                    body: [
+                      {
+                        type: "tpl",
+                        tpl: '<p class="text-sm mb-2">AI 可以帮你调整样式：</p>'
+                      },
+                      {
+                        type: "grid",
+                        columns: [
+                          {
+                            md: 6,
+                            body: {
+                              type: "card",
+                              header: { title: "布局" },
+                              body: {
+                                type: "list",
+                                listItem: {
+                                  body: [{ type: "tpl", tpl: '<span class="text-xs">${body}</span>' }]
+                                },
+                                source: [
+                                  { body: "• 水平/垂直布局" },
+                                  { body: "• 栅格系统 (grid)" },
+                                  { body: "• 弹性布局 (flex)" },
+                                  { body: "• 响应式设计" }
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            md: 6,
+                            body: {
+                              type: "card",
+                              header: { title: "美化" },
+                              body: {
+                                type: "list",
+                                listItem: {
+                                  body: [{ type: "tpl", tpl: '<span class="text-xs">${body}</span>' }]
+                                },
+                                source: [
+                                  { body: "• 颜色主题" },
+                                  { body: "• 圆角/阴影" },
+                                  { body: "• 间距调整" },
+                                  { body: "• 图标添加" }
+                                ]
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+
+      // Tab 4: 实际案例
+      {
+        title: "📚 实际案例",
+        body: {
+          type: "wrapper",
+          className: "p-6 max-w-5xl mx-auto",
+          body: [
+            {
+              type: "tpl",
+              tpl: `
+                <div class="mb-6">
+                  <h2 class="text-3xl font-bold text-slate-800 dark:text-white mb-4">真实场景应用</h2>
+                  <p class="text-slate-600 dark:text-slate-300">
+                    看看 AMIS Agent 如何解决实际业务需求。
+                  </p>
+                </div>
+              `
+            },
+            {
+              type: "cards",
+              source: [
+                {
+                  title: "🛒 电商后台",
+                  description: "商品管理、订单处理、数据统计",
+                  prompt: "创建一个电商后台管理页面，包含商品列表（支持搜索、筛选）、订单管理表格和销售统计图表"
+                },
+                {
+                  title: "👥 CRM 系统",
+                  description: "客户信息、跟进记录、销售漏斗",
+                  prompt: "设计一个 CRM 客户管理界面，左侧客户列表，右侧显示客户详情、跟进记录时间线和销售机会卡片"
+                },
+                {
+                  title: "📊 数据报表",
+                  description: "多维度统计、可视化图表",
+                  prompt: "生成一个数据分析仪表板，顶部显示关键指标卡片，中部是时间趋势图，底部是数据明细表格"
+                },
+                {
+                  title: "📝 内容发布",
+                  description: "富文本编辑、分类标签、发布流程",
+                  prompt: "创建一个文章发布表单，包含标题、富文本编辑器、分类选择、标签输入、封面图上传和发布按钮"
+                },
+                {
+                  title: "⚙️ 系统设置",
+                  description: "多标签配置、权限管理",
+                  prompt: "设计一个系统设置页面，使用标签页组织基础设置、用户权限、通知配置和安全选项"
+                },
+                {
+                  title: "📋 工作流审批",
+                  description: "流程步骤、审批记录、状态追踪",
+                  prompt: "创建一个审批流程页面，顶部是步骤条展示当前进度，中间是审批表单，底部是历史审批记录"
+                }
+              ],
+              card: {
+                header: {
+                  title: "${title}",
+                  className: "font-bold"
+                },
+                body: [
+                  {
+                    type: "tpl",
+                    tpl: '<p class="text-sm text-slate-600 dark:text-slate-400 mb-3">${description}</p>'
+                  },
+                  {
+                    type: "alert",
+                    level: "info",
+                    className: "text-xs",
+                    body: "💬 试试这个提示词："
+                  },
+                  {
+                    type: "code",
+                    language: "text",
+                    className: "text-xs mt-2",
+                    value: "${prompt}"
+                  },
+                  {
+                    type: "button",
+                    label: "试试这个案例",
+                    level: "primary",
+                    size: "sm",
+                    className: "mt-3"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+
+      // Tab 5: 常见问题
+      {
+        title: "❓ 常见问题",
+        body: {
+          type: "wrapper",
+          className: "p-6 max-w-5xl mx-auto",
+          body: [
+            {
+              type: "tpl",
+              tpl: `
+                <div class="mb-6">
+                  <h2 class="text-3xl font-bold text-slate-800 dark:text-white mb-4">常见问题解答</h2>
+                </div>
+              `
+            },
+            {
+              type: "collapse",
+              activeKey: ["q1"],
+              body: [
+                {
+                  key: "q1",
+                  title: "Q: 如何让 AI 生成更准确的页面？",
+                  body: {
+                    type: "tpl",
+                    tpl: `
+                      <div class="text-sm space-y-2">
+                        <p><strong>A: 提供详细、具体的描述：</strong></p>
+                        <ul class="list-disc pl-5 space-y-1">
+                          <li>✓ 明确说明页面类型（表单、表格、仪表板等）</li>
+                          <li>✓ 列出需要的字段和组件</li>
+                          <li>✓ 描述布局和样式要求</li>
+                          <li>✓ 说明特殊交互逻辑</li>
+                        </ul>
+                        <p class="mt-2"><em>示例：</em>"创建一个用户注册表单，垂直布局，包含用户名(必填)、邮箱(必填且验证格式)、密码(必填且显示强度)、确认密码(需匹配)，底部左对齐提交按钮，使用蓝色主题"</p>
+                      </div>
+                    `
+                  }
+                },
+                {
+                  key: "q2",
+                  title: "Q: AI 生成的结果不满意怎么办？",
+                  body: {
+                    type: "tpl",
+                    tpl: `
+                      <div class="text-sm space-y-2">
+                        <p><strong>A: 你可以：</strong></p>
+                        <ul class="list-disc pl-5 space-y-1">
+                          <li>🔄 要求修改："把表单改成水平布局"</li>
+                          <li>➕ 添加功能："给表格加上分页和搜索"</li>
+                          <li>🎨 调整样式："把按钮改成绿色，圆角更大一点"</li>
+                          <li>🗑️ 删除内容："移除邮箱字段"</li>
+                          <li>🔁 重新生成："重新生成一个简洁的版本"</li>
+                        </ul>
+                        <p class="mt-2 text-slate-600">💡 AI 会在当前基础上迭代优化，保留你满意的部分。</p>
+                      </div>
+                    `
+                  }
+                },
+                {
+                  key: "q3",
+                  title: "Q: 支持哪些 AMIS 组件？",
+                  body: {
+                    type: "tpl",
+                    tpl: `
+                      <div class="text-sm space-y-2">
+                        <p><strong>A: 支持 AMIS 全部组件，包括但不限于：</strong></p>
+                        <div class="grid grid-cols-2 gap-2 mt-2">
+                          <div>
+                            <p class="font-semibold mb-1">表单组件：</p>
+                            <ul class="list-disc pl-5 text-xs">
+                              <li>input-text, input-number</li>
+                              <li>input-date, input-datetime</li>
+                              <li>select, checkbox, radio</li>
+                              <li>input-file, input-image</li>
+                              <li>input-rich-text, editor</li>
+                            </ul>
+                          </div>
+                          <div>
+                            <p class="font-semibold mb-1">展示组件：</p>
+                            <ul class="list-disc pl-5 text-xs">
+                              <li>table, table2, cards</li>
+                              <li>chart (各种图表)</li>
+                              <li>tabs, collapse, wizard</li>
+                              <li>timeline, steps</li>
+                              <li>dialog, drawer, toast</li>
+                            </ul>
+                          </div>
+                        </div>
+                        <p class="mt-2 text-slate-600">💡 直接用中文描述组件名称即可，如「下拉选择框」、「日期选择器」等。</p>
+                      </div>
+                    `
+                  }
+                },
+                {
+                  key: "q4",
+                  title: "Q: 如何导出生成的代码？",
+                  body: {
+                    type: "tpl",
+                    tpl: `
+                      <div class="text-sm space-y-2">
+                        <p><strong>A: 有三种方式：</strong></p>
+                        <ol class="list-decimal pl-5 space-y-1">
+                          <li>在聊天界面中查看"最终结果卡片"，点击"复制 JSON"按钮</li>
+                          <li>要求 AI："请显示完整的 JSON 配置"</li>
+                          <li>打开浏览器开发者工具，在 Console 中输入 <code class="bg-slate-100 px-1 py-0.5 rounded">window.amisScoped.props.schema</code></li>
+                        </ol>
+                        <p class="mt-2 text-slate-600">📄 复制后的 JSON 可以直接用于你的项目中。</p>
+                      </div>
+                    `
+                  }
+                },
+                {
+                  key: "q5",
+                  title: "Q: 生成的页面可以直接用于生产环境吗？",
+                  body: {
+                    type: "tpl",
+                    tpl: `
+                      <div class="text-sm space-y-2">
+                        <p><strong>A: 建议先进行以下检查：</strong></p>
+                        <ul class="list-disc pl-5 space-y-1">
+                          <li>⚠️ 验证数据接口 API 地址是否正确</li>
+                          <li>⚠️ 检查表单验证规则是否符合业务需求</li>
+                          <li>⚠️ 测试不同数据量下的性能表现</li>
+                          <li>⚠️ 确认权限控制逻辑</li>
+                          <li>⚠️ 进行跨浏览器兼容性测试</li>
+                        </ul>
+                        <p class="mt-2 text-green-600">✓ AI 生成的代码结构良好、符合规范，但具体业务逻辑需要根据实际需求调整。</p>
+                      </div>
+                    `
+                  }
+                },
+                {
+                  key: "q6",
+                  title: "Q: 如何学习 AMIS 语法？",
+                  body: {
+                    type: "tpl",
+                    tpl: `
+                      <div class="text-sm space-y-2">
+                        <p><strong>A: 推荐学习资源：</strong></p>
+                        <ul class="list-disc pl-5 space-y-1">
+                          <li>📖 <a href="https://baidu.gitee.io/amis" target="_blank" class="text-blue-600 hover:underline">AMIS 官方文档</a></li>
+                          <li>💡 在编辑器中查看 AI 生成的 JSON，学习其结构</li>
+                          <li>🔍 要求 AI 解释："请解释这段配置的作用"</li>
+                          <li>✨ 多尝试不同的描述方式，观察 AI 的输出差异</li>
+                        </ul>
+                        <p class="mt-2 text-slate-600">💡 熟悉几个核心组件后，你就可以手动调整 AI 生成的代码了。</p>
+                      </div>
+                    `
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+
+      // Tab 6: 快捷指令
+      {
+        title: "⚡ 快捷指令",
+        body: {
+          type: "wrapper",
+          className: "p-6 max-w-5xl mx-auto",
+          body: [
+            {
+              type: "tpl",
+              tpl: `
+                <div class="mb-6">
+                  <h2 class="text-3xl font-bold text-slate-800 dark:text-white mb-4">常用提示词模板</h2>
+                  <p class="text-slate-600 dark:text-slate-300">
+                    复制这些模板，替换具体内容后使用。
+                  </p>
+                </div>
+              `
+            },
+            {
+              type: "grid",
+              columns: [
+                {
+                  md: 6,
+                  body: {
+                    type: "panel",
+                    title: "🎯 通用模板",
+                    body: {
+                      type: "list",
+                      listItem: {
+                        body: [
+                          {
+                            type: "code",
+                            language: "text",
+                            className: "text-xs mb-2",
+                            value: "${body}"
+                          }
+                        ]
+                      },
+                      source: [
+                        { body: "创建一个 [类型] 页面，包含 [功能1]、[功能2]、[功能3]" },
+                        { body: "生成 [数据类型] 的 [展示方式]，字段包括 [字段1]、[字段2]" },
+                        { body: "设计一个 [布局方式] 的界面，左侧 [内容1]，右侧 [内容2]" },
+                        { body: "修改 [组件名称]，改成 [新样式/新功能]" }
+                      ]
+                    }
+                  }
+                },
+                {
+                  md: 6,
+                  body: {
+                    type: "panel",
+                    title: "📝 表单专用",
+                    body: {
+                      type: "list",
+                      listItem: {
+                        body: [
+                          {
+                            type: "code",
+                            language: "text",
+                            className: "text-xs mb-2",
+                            value: "${body}"
+                          }
+                        ]
+                      },
+                      source: [
+                        { body: "创建 [表单名称] 表单，[布局方式] 布局，包含 [字段列表]" },
+                        { body: "添加 [字段名称] 字段，类型是 [控件类型]，[是否必填]" },
+                        { body: "为 [字段名称] 添加验证规则：[验证条件]" },
+                        { body: "让 [字段A] 和 [字段B] 联动，当 [字段A] 是 [值] 时，显示 [字段B]" }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              type: "grid",
+              columns: [
+                {
+                  md: 6,
+                  body: {
+                    type: "panel",
+                    title: "📊 表格/列表",
+                    body: {
+                      type: "list",
+                      listItem: {
+                        body: [
+                          {
+                            type: "code",
+                            language: "text",
+                            className: "text-xs mb-2",
+                            value: "${body}"
+                          }
+                        ]
+                      },
+                      source: [
+                        { body: "创建 [数据类型] 列表，显示 [列1]、[列2]、[列3] 列" },
+                        { body: "添加操作列，包含 [操作1]、[操作2] 按钮" },
+                        { body: "添加顶部搜索栏，支持按 [字段] 搜索" },
+                        { body: "添加分页功能，每页显示 [数量] 条" }
+                      ]
+                    }
+                  }
+                },
+                {
+                  md: 6,
+                  body: {
+                    type: "panel",
+                    title: "🎨 样式调整",
+                    body: {
+                      type: "list",
+                      listItem: {
+                        body: [
+                          {
+                            type: "code",
+                            language: "text",
+                            className: "text-xs mb-2",
+                            value: "${body}"
+                          }
+                        ]
+                      },
+                      source: [
+                        { body: "把 [组件] 的颜色改成 [颜色]" },
+                        { body: "调整 [区域] 的间距为 [数值]" },
+                        { body: "为 [组件] 添加 [图标]" },
+                        { body: "让 [组件] 在 [条件] 时隐藏" }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              type: "alert",
+              level: "warning",
+              className: "mt-4",
+              body: "💡 提示：用 [] 标记的部分需要替换成你的实际内容。描述越详细，生成的结果越准确！"
+            }
+          ]
+        }
+      }
+    ]
+  }
 };
 
 // 声明全局类型
