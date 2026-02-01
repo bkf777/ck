@@ -8,6 +8,7 @@ import {
 import { createChatModel } from "../../utils/model-factory.js";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
+import { getMessageContentText } from "../utils.js";
 
 /**
  * 输入处理节点 (Input Processor Node)
@@ -93,15 +94,14 @@ ${rawInput}
   let result: any = {};
 
   try {
-    const response = await model.invoke([
-      new SystemMessage({
-        content: "你是一个精准的数据提取助手，只返回 JSON 格式的结果。",
-      }),
-      new HumanMessage({ content: prompt }),
-    ]);
+  const response = await model.invoke([
+    new SystemMessage({ content: "你是一个精准的数据分析与需求提取专家。" }),
+    new HumanMessage({ content: prompt }),
+  ]);
 
-    const content = response.content as string;
-    // 提取 JSON
+  const content = getMessageContentText(response.content);
+
+  // 1. 提取处理后的文本 (用于后续节点)
     const jsonMatch = content.match(/```json[\s\S]*?\n([\s\S]*?)\n```/) || [
       null,
       content,

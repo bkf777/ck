@@ -8,6 +8,7 @@ import { dispatchCustomEvent } from "@langchain/core/callbacks/dispatch";
 import { createChatModel } from "../../utils/model-factory.js";
 import { AmisAgentState } from "../state.js";
 import { Task, ExecutionEvent } from "../types.js";
+import { getMessageContentText } from "../utils.js";
 
 // Define the tool for generating tasks
 const PLAN_TASKS_TOOL = {
@@ -167,10 +168,7 @@ ${failedTasks
 
   // Bind the tools to the model
   const modelWithTools = model.bindTools(
-    [PLAN_TASKS_TOOL],
-    {
-      parallel_tool_calls: false,
-    }
+    [PLAN_TASKS_TOOL]
   );
 
   let tasks: Task[] = [];
@@ -196,7 +194,7 @@ ${failedTasks
     } else {
        // Fallback: parse raw content if model didn't use tool (shouldn't happen with force bind, but safe to keep)
        console.warn("[Planner] Model did not call tool, attempting fallback parse...");
-       const content = response.content as string;
+       const content = getMessageContentText(response.content);
         const jsonCodeBlockMatch = content.match(
           /```json[\s\S]*?\n([\s\S]*?)\n```/,
         );

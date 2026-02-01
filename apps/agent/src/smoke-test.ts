@@ -662,7 +662,7 @@ async function runSmokeTest() {
 }  生成报告并使用中文描述。`,
     tasks: [] as Task[],
     currentTaskIndex: 0,
-    finalJson: {},
+    schema: {},
     executionLog: [] as ExecutionEvent[],
     feedbackStatus: "pending" as const,
     tasksToRetry: [],
@@ -731,7 +731,7 @@ async function runSmokeTest() {
       }
 
       // 更新状态
-      state = result;
+      state = result as any;
       console.log("✅ 步骤：工作流执行完成");
 
       // 打印新增执行日志（逐步）
@@ -798,16 +798,16 @@ async function runSmokeTest() {
         console.log(`📄 上下文文档: ${state.contextDocuments.length} 个`);
       }
 
-      if (state.finalJson && Object.keys(state.finalJson).length > 0) {
+      if (state.schema && Object.keys(state.schema).length > 0) {
         console.log(`✅ 最终结果已生成`);
-        console.log(`   类型: ${(state.finalJson as any).type}`);
+        console.log(`   类型: ${(state.schema as any).type}`);
       }
 
       // 检查是否完成
       if (
         state.currentTaskIndex >= (state.tasks?.length || 0) &&
-        state.finalJson &&
-        Object.keys(state.finalJson).length > 0
+        state.schema &&
+        Object.keys(state.schema).length > 0
       ) {
         console.log("\n🎉 工作流完成！所有任务已执行，结果已综合。");
         break;
@@ -863,9 +863,9 @@ async function runSmokeTest() {
     console.log("=".repeat(80));
 
     let finalOutput = null;
-    if (state.finalJson && Object.keys(state.finalJson).length > 0) {
-      finalOutput = state.finalJson;
-      console.log(JSON.stringify(state.finalJson, null, 2));
+    if (state.schema && Object.keys(state.schema).length > 0) {
+      finalOutput = state.schema;
+      console.log(JSON.stringify(state.schema, null, 2));
     } else if (state.schema && Object.keys(state.schema).length > 0) {
       finalOutput = state.schema;
       console.log(JSON.stringify(state.schema, null, 2));

@@ -3,6 +3,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { createChatModel } from "../../utils/model-factory.js";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
+import { getMessageContentText } from "../utils.js";
 
 /**
  * 2.3 JSON 修复节点 (Fixer Node)
@@ -52,7 +53,7 @@ ${
     new HumanMessage({ content: prompt }),
   ]);
 
-  const content = response.content as string;
+  const content = getMessageContentText(response.content);
 
   // 更新任务的 rawResult，然后再次进入 validator
   tasks[currentIndex].rawResult = content;

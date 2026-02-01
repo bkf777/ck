@@ -3,10 +3,10 @@ import { createChatModel } from "../../utils/model-factory.js";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
-import { parseJsonFromMarkdown } from "../utils.js";
+import { parseJsonFromMarkdown, getMessageContentText } from "../utils.js";
 
 /**
- * 3. 结果综合节点 (Composer Node)
+ * 4. 综合节点 (Composer Node)
  * 职责：将所有子任务的输出组合成完整的 amis JSON
  */
 export async function composer_node(
@@ -63,7 +63,7 @@ ${JSON.stringify(processData.dataStructure, null, 2)}`;
     ]);
 
     try {
-      const content = response.content as string;
+      const content = getMessageContentText(response.content);
       const finalJson = parseJsonFromMarkdown(content);
 
       console.log("✅ [Composer] 综合完成");

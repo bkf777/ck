@@ -55,7 +55,7 @@ async function chat_node(state: AgentState, config: RunnableConfig) {
   // 5.2 Bind the tools to the model, include CopilotKit actions. This allows
   //     the model to call tools that are defined in CopilotKit by the frontend.
   const modelWithTools = model.bindTools!([
-    ...convertActionsToDynamicStructuredTools(state.copilotkit?.actions ?? []),
+    ...convertActionsToDynamicStructuredTools((state as any).copilotkit?.actions ?? []),
     ...tools,
   ]);
 
@@ -63,13 +63,13 @@ async function chat_node(state: AgentState, config: RunnableConfig) {
   //     we also add in the language to use from the state.
   const systemMessage = new SystemMessage({
     content: `You are a helpful assistant. The current proverbs are ${JSON.stringify(
-      state.proverbs
+      (state as any).proverbs
     )}.`,
   });
 
   // 5.4 Invoke the model with the system message and the messages in the state
   const response = await modelWithTools.invoke(
-    [systemMessage, ...state.messages],
+    [systemMessage, ...(state as any).messages],
     config
   );
 
@@ -81,7 +81,8 @@ async function chat_node(state: AgentState, config: RunnableConfig) {
 
 // 6. Define the function that determines whether to continue or not,
 //    this is used to determine the next node to run
-function shouldContinue({ messages, copilotkit }: AgentState) {
+function shouldContinue(state: AgentState) {
+  const { messages, copilotkit } = state as any;
   // 6.1 Get the last message from the state
   const lastMessage = messages[messages.length - 1] as AIMessage;
 
@@ -95,7 +96,7 @@ function shouldContinue({ messages, copilotkit }: AgentState) {
       const toolCallName = toolCall.name;
 
       // 7.3 Only route to the tool node if the tool call is not a CopilotKit action
-      if (!actions || actions.every((action) => action.name !== toolCallName)) {
+      if (!actions || actions.every((action: any) => action.name !== toolCallName)) {
         return "tool_node";
       }
     }

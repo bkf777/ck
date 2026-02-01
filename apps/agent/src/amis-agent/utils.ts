@@ -137,3 +137,22 @@ export function parseJsonFromMarkdown(content: string): any {
     }
   }
 }
+
+/**
+ * 从 BaseMessage 的 content 中提取纯文本内容
+ */
+export function getMessageContentText(content: any): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "text" in item) {
+          return item.text;
+        }
+        return "";
+      })
+      .join("");
+  }
+  return "";
+}

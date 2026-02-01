@@ -9,7 +9,7 @@ import {
 } from "@langchain/core/messages";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
-import { parseJsonFromMarkdown } from "../utils.js";
+import { parseJsonFromMarkdown, getMessageContentText } from "../utils.js";
 
 /**
  * 简化 Schema，只保留关键结构字段，减少 Token 消耗
@@ -184,13 +184,7 @@ ${JSON.stringify(simplifiedResults, null, 2)}
   }
 
   // 获取原始响应内容并保存
-  const content = response.content;
-  let rawResult = "";
-  if (typeof content === "string") {
-    rawResult = content;
-  } else if (Array.isArray(content) && content[0]?.text) {
-    rawResult = content[0].text;
-  }
+  const rawResult = getMessageContentText(response.content);
 
   tasks[currentIndex].rawResult = rawResult;
   tasks[currentIndex].status = "in_progress";
