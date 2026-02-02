@@ -48,14 +48,15 @@ ${JSON.stringify(processData.dataStructure, null, 2)}`;
     }
 
     prompt += `\n\n综合要求：
-1. 将所有组件组合成完整的页面配置 (type: "page")
-2. 如果存在【全局数据上下文】，务必将其完整注入到根节点的 \`data\` 属性中，以便子组件可以通过 \`source\` 或变量映射访问。
-3. 如果是表单组件，放入 form 的 body 中
-4. 确保结构完整，可直接在 amis 中使用
-5. 添加必要的 API 配置（如需要）
-6. 只返回 JSON 对象，不要有其他内容
+1. **结构化组装**：将所有已生成的组件合理安排在页面 (type: "page") 的 \`body\` 中。
+2. **响应式布局**：根据组件特点，利用 Amis 的布局容器（如 grid, flex, container）或 CSS 类名，确保页面在不同屏幕尺寸下有良好的展示效果。
+3. **数据注入**：务必将【全局数据上下文】注入到根节点的 \`data\` 属性中。
+4. **禁止过度设计**：
+   - 保持组件原有的配置，**严禁** 擅自添加新的 API 接口或复杂的业务逻辑。
+   - 除非是为了布局美观（如添加 divider 或对齐），否则不要增加新的功能组件。
+5. **纯净输出**：只返回最终的 JSON 对象，不要有任何 Markdown 标记或解释文字。
 
-请生成完整的 amis JSON 配置：`;
+请生成综合后的 amis JSON 配置：`;
 
     const response = await model.invoke([
       new SystemMessage({ content: "你是 amis 配置综合专家" }),

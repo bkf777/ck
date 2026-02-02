@@ -43,7 +43,7 @@ const DEFAULT_SCHEMA = {
     html.dark .cxd-Tabs-link { color: #f8fafc !important; }
     html.dark .cxd-Tabs-link.is-active { background-color: #6366f1 !important; }
   `,
-body: {
+  body: {
     type: "tabs",
     tabsMode: "line",
     tabs: [
@@ -63,7 +63,7 @@ body: {
                     AMIS Agent 是一个基于 AI 的低代码页面生成工具，让你可以通过自然语言描述来创建复杂的前端页面。
                   </p>
                 </div>
-              `
+              `,
             },
             {
               type: "grid",
@@ -74,7 +74,7 @@ body: {
                     type: "card",
                     header: {
                       title: "🎯 核心特性",
-                      className: "font-bold"
+                      className: "font-bold",
                     },
                     body: {
                       type: "list",
@@ -82,19 +82,19 @@ body: {
                         body: [
                           {
                             type: "tpl",
-                            tpl: '<span class="text-sm text-slate-700 dark:text-slate-200">${body}</span>'
-                          }
-                        ]
+                            tpl: '<span class="text-sm text-slate-700 dark:text-slate-200">${body}</span>',
+                          },
+                        ],
                       },
                       source: [
                         { body: "✨ 自然语言交互：用中文描述需求即可生成页面" },
                         { body: "🚀 即时生成：秒级响应，实时预览" },
                         { body: "🎨 智能样式：自动应用现代化设计" },
                         { body: "📦 AMIS 组件库：支持 100+ 组件类型" },
-                        { body: "🔄 迭代优化：可以反复修改和调整" }
-                      ]
-                    }
-                  }
+                        { body: "🔄 迭代优化：可以反复修改和调整" },
+                      ],
+                    },
+                  },
                 },
                 {
                   md: 6,
@@ -102,30 +102,39 @@ body: {
                     type: "card",
                     header: {
                       title: "🛠️ 工作原理",
-                      className: "font-bold"
+                      className: "font-bold",
                     },
                     body: {
                       type: "steps",
                       status: "finish",
                       steps: [
-                        { title: "描述需求", description: "告诉 AI 你想要什么" },
-                        { title: "AI 分析", description: "理解需求并规划页面结构" },
-                        { title: "生成代码", description: "输出 AMIS JSON Schema" },
-                        { title: "实时预览", description: "立即看到渲染效果" }
-                      ]
-                    }
-                  }
-                }
-              ]
+                        {
+                          title: "描述需求",
+                          description: "告诉 AI 你想要什么",
+                        },
+                        {
+                          title: "AI 分析",
+                          description: "理解需求并规划页面结构",
+                        },
+                        {
+                          title: "生成代码",
+                          description: "输出 AMIS JSON Schema",
+                        },
+                        { title: "实时预览", description: "立即看到渲染效果" },
+                      ],
+                    },
+                  },
+                },
+              ],
             },
             {
               type: "alert",
               level: "info",
               className: "mt-6",
-              body: "💡 提示：点击右侧的 Copilot 图标打开聊天窗口，开始你的第一个 AI 页面创建之旅！"
-            }
-          ]
-        }
+              body: "💡 提示：点击右侧的 Copilot 图标打开聊天窗口，开始你的第一个 AI 页面创建之旅！",
+            },
+          ],
+        },
       },
 
       // Tab 2: 快速开始
@@ -144,7 +153,7 @@ body: {
                     让我们通过几个简单的例子，学习如何使用 AMIS Agent。
                   </p>
                 </div>
-              `
+              `,
             },
             {
               type: "panel",
@@ -154,20 +163,20 @@ body: {
                 {
                   type: "tpl",
                   className: "mb-3",
-                  tpl: '<p class="text-sm text-slate-700 dark:text-slate-300">在 Copilot 中输入以下内容：</p>'
+                  tpl: '<p class="text-sm text-slate-700 dark:text-slate-300">在 Copilot 中输入以下内容：</p>',
                 },
                 {
                   type: "code",
                   language: "text",
-                  value: "创建一个登录表单，包含用户名、密码输入框和登录按钮"
+                  value: "创建一个登录表单，包含用户名、密码输入框和登录按钮",
                 },
                 {
-                  type: "divider"
+                  type: "divider",
                 },
                 {
                   type: "tpl",
                   className: "mb-2",
-                  tpl: '<p class="text-sm font-semibold text-slate-700 dark:text-slate-300">AI 会生成类似这样的表单：</p>'
+                  tpl: '<p class="text-sm font-semibold text-slate-700 dark:text-slate-300">AI 会生成类似这样的表单：</p>',
                 },
                 {
                   type: "form",
@@ -179,23 +188,23 @@ body: {
                       name: "username",
                       label: "用户名",
                       placeholder: "请输入用户名",
-                      required: true
+                      required: true,
                     },
                     {
                       type: "input-password",
                       name: "password",
                       label: "密码",
                       placeholder: "请输入密码",
-                      required: true
+                      required: true,
                     },
                     {
                       type: "submit",
                       label: "登录",
-                      level: "primary"
-                    }
-                  ]
-                }
-              ]
+                      level: "primary",
+                    },
+                  ],
+                },
+              ],
             },
             {
               type: "panel",
@@ -205,29 +214,44 @@ body: {
                 {
                   type: "tpl",
                   className: "mb-3",
-                  tpl: '<p class="text-sm text-slate-700 dark:text-slate-300">尝试这个指令：</p>'
+                  tpl: '<p class="text-sm text-slate-700 dark:text-slate-300">尝试这个指令：</p>',
                 },
                 {
                   type: "code",
                   language: "text",
-                  value: "创建一个用户列表表格，显示姓名、邮箱、状态和操作按钮"
+                  value: "创建一个用户列表表格，显示姓名、邮箱、状态和操作按钮",
                 },
                 {
-                  type: "divider"
+                  type: "divider",
                 },
                 {
                   type: "tpl",
                   className: "mb-2",
-                  tpl: '<p class="text-sm font-semibold text-slate-700 dark:text-slate-300">生成的表格示例：</p>'
+                  tpl: '<p class="text-sm font-semibold text-slate-700 dark:text-slate-300">生成的表格示例：</p>',
                 },
                 {
                   type: "table",
                   data: {
                     items: [
-                      { id: 1, name: "张三", email: "zhang@example.com", status: "active" },
-                      { id: 2, name: "李四", email: "li@example.com", status: "inactive" },
-                      { id: 3, name: "王五", email: "wang@example.com", status: "active" }
-                    ]
+                      {
+                        id: 1,
+                        name: "张三",
+                        email: "zhang@example.com",
+                        status: "active",
+                      },
+                      {
+                        id: 2,
+                        name: "李四",
+                        email: "li@example.com",
+                        status: "inactive",
+                      },
+                      {
+                        id: 3,
+                        name: "王五",
+                        email: "wang@example.com",
+                        status: "active",
+                      },
+                    ],
                   },
                   columns: [
                     { name: "name", label: "姓名" },
@@ -237,29 +261,34 @@ body: {
                       label: "状态",
                       type: "status",
                       map: {
-                        "active": { label: "活跃", status: "success" },
-                        "inactive": { label: "未激活", status: "warning" }
-                      }
+                        active: { label: "活跃", status: "success" },
+                        inactive: { label: "未激活", status: "warning" },
+                      },
                     },
                     {
                       type: "operation",
                       label: "操作",
                       buttons: [
                         { label: "编辑", type: "button", level: "link" },
-                        { label: "删除", type: "button", level: "link", className: "text-red-500" }
-                      ]
-                    }
-                  ]
-                }
-              ]
+                        {
+                          label: "删除",
+                          type: "button",
+                          level: "link",
+                          className: "text-red-500",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
             },
             {
               type: "alert",
               level: "success",
-              body: "🎉 提示：你可以随时要求 AI 修改已生成的内容，比如「把表单改成垂直布局」或「给表格添加分页功能」。"
-            }
-          ]
-        }
+              body: "🎉 提示：你可以随时要求 AI 修改已生成的内容，比如「把表单改成垂直布局」或「给表格添加分页功能」。",
+            },
+          ],
+        },
       },
 
       // Tab 3: 进阶技巧
@@ -278,7 +307,7 @@ body: {
                     了解如何充分利用 AMIS Agent 的强大功能。
                   </p>
                 </div>
-              `
+              `,
             },
             {
               type: "collapse",
@@ -291,29 +320,37 @@ body: {
                     body: [
                       {
                         type: "tpl",
-                        tpl: '<p class="text-sm mb-2">你可以创建包含多种控件的复杂表单：</p>'
+                        tpl: '<p class="text-sm mb-2">你可以创建包含多种控件的复杂表单：</p>',
                       },
                       {
                         type: "list",
                         listItem: {
-                          body: [{ type: "tpl", tpl: '<span class="text-sm">${body}</span>' }]
+                          body: [
+                            {
+                              type: "tpl",
+                              tpl: '<span class="text-sm">${body}</span>',
+                            },
+                          ],
                         },
                         source: [
-                          { body: "• 日期/时间选择器：input-date, input-datetime" },
+                          {
+                            body: "• 日期/时间选择器：input-date, input-datetime",
+                          },
                           { body: "• 文件上传：input-file, input-image" },
                           { body: "• 富文本编辑器：input-rich-text" },
                           { body: "• 级联选择：select (多级数据)" },
-                          { body: "• 动态表单：combo (可添加/删除行)" }
-                        ]
+                          { body: "• 动态表单：combo (可添加/删除行)" },
+                        ],
                       },
                       {
                         type: "code",
                         language: "text",
                         className: "mt-3",
-                        value: "示例指令：创建一个注册表单，包含姓名、出生日期、头像上传、省市区三级联动选择"
-                      }
-                    ]
-                  }
+                        value:
+                          "示例指令：创建一个注册表单，包含姓名、出生日期、头像上传、省市区三级联动选择",
+                      },
+                    ],
+                  },
                 },
                 {
                   title: "📊 数据可视化",
@@ -322,7 +359,7 @@ body: {
                     body: [
                       {
                         type: "tpl",
-                        tpl: '<p class="text-sm mb-2">支持多种图表类型：</p>'
+                        tpl: '<p class="text-sm mb-2">支持多种图表类型：</p>',
                       },
                       {
                         type: "grid",
@@ -332,39 +369,50 @@ body: {
                             body: {
                               type: "list",
                               listItem: {
-                                body: [{ type: "tpl", tpl: '<span class="text-sm">${body}</span>' }]
+                                body: [
+                                  {
+                                    type: "tpl",
+                                    tpl: '<span class="text-sm">${body}</span>',
+                                  },
+                                ],
                               },
                               source: [
                                 { body: "📈 折线图 (line chart)" },
                                 { body: "📊 柱状图 (bar chart)" },
-                                { body: "🥧 饼图 (pie chart)" }
-                              ]
-                            }
+                                { body: "🥧 饼图 (pie chart)" },
+                              ],
+                            },
                           },
                           {
                             md: 6,
                             body: {
                               type: "list",
                               listItem: {
-                                body: [{ type: "tpl", tpl: '<span class="text-sm">${body}</span>' }]
+                                body: [
+                                  {
+                                    type: "tpl",
+                                    tpl: '<span class="text-sm">${body}</span>',
+                                  },
+                                ],
                               },
                               source: [
                                 { body: "🌍 地图 (map)" },
                                 { body: "🎯 仪表盘 (gauge)" },
-                                { body: "📉 雷达图 (radar)" }
-                              ]
-                            }
-                          }
-                        ]
+                                { body: "📉 雷达图 (radar)" },
+                              ],
+                            },
+                          },
+                        ],
                       },
                       {
                         type: "code",
                         language: "text",
                         className: "mt-3",
-                        value: "示例指令：创建一个销售数据仪表板，包含本月销售额趋势折线图和各产品销量饼图"
-                      }
-                    ]
-                  }
+                        value:
+                          "示例指令：创建一个销售数据仪表板，包含本月销售额趋势折线图和各产品销量饼图",
+                      },
+                    ],
+                  },
                 },
                 {
                   title: "🎯 条件显示与联动",
@@ -373,28 +421,34 @@ body: {
                     body: [
                       {
                         type: "tpl",
-                        tpl: '<p class="text-sm mb-2">让页面动起来：</p>'
+                        tpl: '<p class="text-sm mb-2">让页面动起来：</p>',
                       },
                       {
                         type: "list",
                         listItem: {
-                          body: [{ type: "tpl", tpl: '<span class="text-sm">${body}</span>' }]
+                          body: [
+                            {
+                              type: "tpl",
+                              tpl: '<span class="text-sm">${body}</span>',
+                            },
+                          ],
                         },
                         source: [
                           { body: "✓ 使用 visibleOn 控制组件显示/隐藏" },
                           { body: "✓ 使用 disabledOn 动态禁用组件" },
                           { body: "✓ 使用 service 组件加载远程数据" },
-                          { body: "✓ 通过 onChange 事件触发其他组件更新" }
-                        ]
+                          { body: "✓ 通过 onChange 事件触发其他组件更新" },
+                        ],
                       },
                       {
                         type: "code",
                         language: "text",
                         className: "mt-3",
-                        value: '示例指令：创建一个表单，当用户选择「其他」选项时，显示一个额外的文本输入框'
-                      }
-                    ]
-                  }
+                        value:
+                          "示例指令：创建一个表单，当用户选择「其他」选项时，显示一个额外的文本输入框",
+                      },
+                    ],
+                  },
                 },
                 {
                   title: "🎨 样式定制",
@@ -403,7 +457,7 @@ body: {
                     body: [
                       {
                         type: "tpl",
-                        tpl: '<p class="text-sm mb-2">AI 可以帮你调整样式：</p>'
+                        tpl: '<p class="text-sm mb-2">AI 可以帮你调整样式：</p>',
                       },
                       {
                         type: "grid",
@@ -416,16 +470,21 @@ body: {
                               body: {
                                 type: "list",
                                 listItem: {
-                                  body: [{ type: "tpl", tpl: '<span class="text-xs">${body}</span>' }]
+                                  body: [
+                                    {
+                                      type: "tpl",
+                                      tpl: '<span class="text-xs">${body}</span>',
+                                    },
+                                  ],
                                 },
                                 source: [
                                   { body: "• 水平/垂直布局" },
                                   { body: "• 栅格系统 (grid)" },
                                   { body: "• 弹性布局 (flex)" },
-                                  { body: "• 响应式设计" }
-                                ]
-                              }
-                            }
+                                  { body: "• 响应式设计" },
+                                ],
+                              },
+                            },
                           },
                           {
                             md: 6,
@@ -435,26 +494,31 @@ body: {
                               body: {
                                 type: "list",
                                 listItem: {
-                                  body: [{ type: "tpl", tpl: '<span class="text-xs">${body}</span>' }]
+                                  body: [
+                                    {
+                                      type: "tpl",
+                                      tpl: '<span class="text-xs">${body}</span>',
+                                    },
+                                  ],
                                 },
                                 source: [
                                   { body: "• 颜色主题" },
                                   { body: "• 圆角/阴影" },
                                   { body: "• 间距调整" },
-                                  { body: "• 图标添加" }
-                                ]
-                              }
-                            }
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        }
+                                  { body: "• 图标添加" },
+                                ],
+                              },
+                            },
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        },
       },
 
       // Tab 4: 实际案例
@@ -473,7 +537,7 @@ body: {
                     看看 AMIS Agent 如何解决实际业务需求。
                   </p>
                 </div>
-              `
+              `,
             },
             {
               type: "cards",
@@ -481,68 +545,74 @@ body: {
                 {
                   title: "🛒 电商后台",
                   description: "商品管理、订单处理、数据统计",
-                  prompt: "创建一个电商后台管理页面，包含商品列表（支持搜索、筛选）、订单管理表格和销售统计图表"
+                  prompt:
+                    "创建一个电商后台管理页面，包含商品列表（支持搜索、筛选）、订单管理表格和销售统计图表",
                 },
                 {
                   title: "👥 CRM 系统",
                   description: "客户信息、跟进记录、销售漏斗",
-                  prompt: "设计一个 CRM 客户管理界面，左侧客户列表，右侧显示客户详情、跟进记录时间线和销售机会卡片"
+                  prompt:
+                    "设计一个 CRM 客户管理界面，左侧客户列表，右侧显示客户详情、跟进记录时间线和销售机会卡片",
                 },
                 {
                   title: "📊 数据报表",
                   description: "多维度统计、可视化图表",
-                  prompt: "生成一个数据分析仪表板，顶部显示关键指标卡片，中部是时间趋势图，底部是数据明细表格"
+                  prompt:
+                    "生成一个数据分析仪表板，顶部显示关键指标卡片，中部是时间趋势图，底部是数据明细表格",
                 },
                 {
                   title: "📝 内容发布",
                   description: "富文本编辑、分类标签、发布流程",
-                  prompt: "创建一个文章发布表单，包含标题、富文本编辑器、分类选择、标签输入、封面图上传和发布按钮"
+                  prompt:
+                    "创建一个文章发布表单，包含标题、富文本编辑器、分类选择、标签输入、封面图上传和发布按钮",
                 },
                 {
                   title: "⚙️ 系统设置",
                   description: "多标签配置、权限管理",
-                  prompt: "设计一个系统设置页面，使用标签页组织基础设置、用户权限、通知配置和安全选项"
+                  prompt:
+                    "设计一个系统设置页面，使用标签页组织基础设置、用户权限、通知配置和安全选项",
                 },
                 {
                   title: "📋 工作流审批",
                   description: "流程步骤、审批记录、状态追踪",
-                  prompt: "创建一个审批流程页面，顶部是步骤条展示当前进度，中间是审批表单，底部是历史审批记录"
-                }
+                  prompt:
+                    "创建一个审批流程页面，顶部是步骤条展示当前进度，中间是审批表单，底部是历史审批记录",
+                },
               ],
               card: {
                 header: {
                   title: "${title}",
-                  className: "font-bold"
+                  className: "font-bold",
                 },
                 body: [
                   {
                     type: "tpl",
-                    tpl: '<p class="text-sm text-slate-600 dark:text-slate-400 mb-3">${description}</p>'
+                    tpl: '<p class="text-sm text-slate-600 dark:text-slate-400 mb-3">${description}</p>',
                   },
                   {
                     type: "alert",
                     level: "info",
                     className: "text-xs",
-                    body: "💬 试试这个提示词："
+                    body: "💬 试试这个提示词：",
                   },
                   {
                     type: "code",
                     language: "text",
                     className: "text-xs mt-2",
-                    value: "${prompt}"
+                    value: "${prompt}",
                   },
                   {
                     type: "button",
                     label: "试试这个案例",
                     level: "primary",
                     size: "sm",
-                    className: "mt-3"
-                  }
-                ]
-              }
-            }
-          ]
-        }
+                    className: "mt-3",
+                  },
+                ],
+              },
+            },
+          ],
+        },
       },
 
       // Tab 5: 常见问题
@@ -558,7 +628,7 @@ body: {
                 <div class="mb-6">
                   <h2 class="text-3xl font-bold text-slate-800 dark:text-white mb-4">常见问题解答</h2>
                 </div>
-              `
+              `,
             },
             {
               type: "collapse",
@@ -580,8 +650,8 @@ body: {
                         </ul>
                         <p class="mt-2"><em>示例：</em>"创建一个用户注册表单，垂直布局，包含用户名(必填)、邮箱(必填且验证格式)、密码(必填且显示强度)、确认密码(需匹配)，底部左对齐提交按钮，使用蓝色主题"</p>
                       </div>
-                    `
-                  }
+                    `,
+                  },
                 },
                 {
                   key: "q2",
@@ -600,8 +670,8 @@ body: {
                         </ul>
                         <p class="mt-2 text-slate-600">💡 AI 会在当前基础上迭代优化，保留你满意的部分。</p>
                       </div>
-                    `
-                  }
+                    `,
+                  },
                 },
                 {
                   key: "q3",
@@ -635,8 +705,8 @@ body: {
                         </div>
                         <p class="mt-2 text-slate-600">💡 直接用中文描述组件名称即可，如「下拉选择框」、「日期选择器」等。</p>
                       </div>
-                    `
-                  }
+                    `,
+                  },
                 },
                 {
                   key: "q4",
@@ -653,8 +723,8 @@ body: {
                         </ol>
                         <p class="mt-2 text-slate-600">📄 复制后的 JSON 可以直接用于你的项目中。</p>
                       </div>
-                    `
-                  }
+                    `,
+                  },
                 },
                 {
                   key: "q5",
@@ -673,8 +743,8 @@ body: {
                         </ul>
                         <p class="mt-2 text-green-600">✓ AI 生成的代码结构良好、符合规范，但具体业务逻辑需要根据实际需求调整。</p>
                       </div>
-                    `
-                  }
+                    `,
+                  },
                 },
                 {
                   key: "q6",
@@ -692,13 +762,13 @@ body: {
                         </ul>
                         <p class="mt-2 text-slate-600">💡 熟悉几个核心组件后，你就可以手动调整 AI 生成的代码了。</p>
                       </div>
-                    `
-                  }
-                }
-              ]
-            }
-          ]
-        }
+                    `,
+                  },
+                },
+              ],
+            },
+          ],
+        },
       },
 
       // Tab 6: 快捷指令
@@ -717,7 +787,7 @@ body: {
                     复制这些模板，替换具体内容后使用。
                   </p>
                 </div>
-              `
+              `,
             },
             {
               type: "grid",
@@ -735,18 +805,24 @@ body: {
                             type: "code",
                             language: "text",
                             className: "text-xs mb-2",
-                            value: "${body}"
-                          }
-                        ]
+                            value: "${body}",
+                          },
+                        ],
                       },
                       source: [
-                        { body: "创建一个 [类型] 页面，包含 [功能1]、[功能2]、[功能3]" },
-                        { body: "生成 [数据类型] 的 [展示方式]，字段包括 [字段1]、[字段2]" },
-                        { body: "设计一个 [布局方式] 的界面，左侧 [内容1]，右侧 [内容2]" },
-                        { body: "修改 [组件名称]，改成 [新样式/新功能]" }
-                      ]
-                    }
-                  }
+                        {
+                          body: "创建一个 [类型] 页面，包含 [功能1]、[功能2]、[功能3]",
+                        },
+                        {
+                          body: "生成 [数据类型] 的 [展示方式]，字段包括 [字段1]、[字段2]",
+                        },
+                        {
+                          body: "设计一个 [布局方式] 的界面，左侧 [内容1]，右侧 [内容2]",
+                        },
+                        { body: "修改 [组件名称]，改成 [新样式/新功能]" },
+                      ],
+                    },
+                  },
                 },
                 {
                   md: 6,
@@ -761,20 +837,26 @@ body: {
                             type: "code",
                             language: "text",
                             className: "text-xs mb-2",
-                            value: "${body}"
-                          }
-                        ]
+                            value: "${body}",
+                          },
+                        ],
                       },
                       source: [
-                        { body: "创建 [表单名称] 表单，[布局方式] 布局，包含 [字段列表]" },
-                        { body: "添加 [字段名称] 字段，类型是 [控件类型]，[是否必填]" },
+                        {
+                          body: "创建 [表单名称] 表单，[布局方式] 布局，包含 [字段列表]",
+                        },
+                        {
+                          body: "添加 [字段名称] 字段，类型是 [控件类型]，[是否必填]",
+                        },
                         { body: "为 [字段名称] 添加验证规则：[验证条件]" },
-                        { body: "让 [字段A] 和 [字段B] 联动，当 [字段A] 是 [值] 时，显示 [字段B]" }
-                      ]
-                    }
-                  }
-                }
-              ]
+                        {
+                          body: "让 [字段A] 和 [字段B] 联动，当 [字段A] 是 [值] 时，显示 [字段B]",
+                        },
+                      ],
+                    },
+                  },
+                },
+              ],
             },
             {
               type: "grid",
@@ -792,18 +874,20 @@ body: {
                             type: "code",
                             language: "text",
                             className: "text-xs mb-2",
-                            value: "${body}"
-                          }
-                        ]
+                            value: "${body}",
+                          },
+                        ],
                       },
                       source: [
-                        { body: "创建 [数据类型] 列表，显示 [列1]、[列2]、[列3] 列" },
+                        {
+                          body: "创建 [数据类型] 列表，显示 [列1]、[列2]、[列3] 列",
+                        },
                         { body: "添加操作列，包含 [操作1]、[操作2] 按钮" },
                         { body: "添加顶部搜索栏，支持按 [字段] 搜索" },
-                        { body: "添加分页功能，每页显示 [数量] 条" }
-                      ]
-                    }
-                  }
+                        { body: "添加分页功能，每页显示 [数量] 条" },
+                      ],
+                    },
+                  },
                 },
                 {
                   md: 6,
@@ -818,32 +902,32 @@ body: {
                             type: "code",
                             language: "text",
                             className: "text-xs mb-2",
-                            value: "${body}"
-                          }
-                        ]
+                            value: "${body}",
+                          },
+                        ],
                       },
                       source: [
                         { body: "把 [组件] 的颜色改成 [颜色]" },
                         { body: "调整 [区域] 的间距为 [数值]" },
                         { body: "为 [组件] 添加 [图标]" },
-                        { body: "让 [组件] 在 [条件] 时隐藏" }
-                      ]
-                    }
-                  }
-                }
-              ]
+                        { body: "让 [组件] 在 [条件] 时隐藏" },
+                      ],
+                    },
+                  },
+                },
+              ],
             },
             {
               type: "alert",
               level: "warning",
               className: "mt-4",
-              body: "💡 提示：用 [] 标记的部分需要替换成你的实际内容。描述越详细，生成的结果越准确！"
-            }
-          ]
-        }
-      }
-    ]
-  }
+              body: "💡 提示：用 [] 标记的部分需要替换成你的实际内容。描述越详细，生成的结果越准确！",
+            },
+          ],
+        },
+      },
+    ],
+  },
 };
 
 // 声明全局类型
@@ -1203,38 +1287,71 @@ function ThemeSwitcher({
 
 function AmisEditorPage() {
   const containerRef = useRef<HTMLDivElement>(null);
+
   const microAppRef = useRef<any>(null);
+
   const [isClient, setIsClient] = useState(false);
+
   const [sdkReady, setSdkReady] = useState(false);
+
   const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">(
     "system",
   );
 
+  // 监听 agent 状态变化（用于调试和 UI 更新）
+
+  const ref = useRef<AmisInstance | null>(null);
+
+  // 当 schema 更新时重新渲染
+
+  const updateSchema = useCallback((newSchema: Record<string, unknown>) => {
+    console.log("准备更新 schema:", newSchema);
+
+    if (ref.current && typeof ref.current.updateSchema === "function") {
+      try {
+        ref.current.updateSchema(newSchema);
+
+        console.log("✅ Schema 更新成功");
+      } catch (error) {
+        console.error("❌ Schema 更新失败:", error);
+      }
+    } else {
+      console.warn("⚠️ amis 实例未就绪或 updateSchema 方法不可用");
+    }
+  }, []);
+
   useEffect(() => {
     // Check if AMIS is already available
+
     if ((window as any).amisRequire) {
       setSdkReady(true);
     }
 
     // Listen for the ready event
+
     const onAmisReady = () => setSdkReady(true);
+
     window.addEventListener("amis-ready", onAmisReady);
 
     // Safety check interval
+
     const interval = setInterval(() => {
       if ((window as any).amisRequire) {
         setSdkReady(true);
+
         clearInterval(interval);
       }
     }, 200);
 
     return () => {
       window.removeEventListener("amis-ready", onAmisReady);
+
       clearInterval(interval);
     };
   }, []);
 
   // 在客户端挂载时从 localStorage 恢复用户偏好
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem("amis-theme") as
@@ -1242,6 +1359,7 @@ function AmisEditorPage() {
         | "dark"
         | "system"
         | null;
+
       if (saved) setThemeMode(saved);
     } catch (e) {
       // ignore
@@ -1253,6 +1371,7 @@ function AmisEditorPage() {
       const isSystemDark = window.matchMedia(
         "(prefers-color-scheme: dark)",
       ).matches;
+
       const shouldBeDark =
         themeMode === "dark" || (themeMode === "system" && isSystemDark);
 
@@ -1266,6 +1385,7 @@ function AmisEditorPage() {
     applyTheme();
 
     // 持久化用户选择：如果选择 system，则清除显式存储；否则保存选择
+
     try {
       if (themeMode === "system") {
         localStorage.removeItem("amis-theme");
@@ -1278,20 +1398,29 @@ function AmisEditorPage() {
 
     if (themeMode === "system") {
       const media = window.matchMedia("(prefers-color-scheme: dark)");
+
       const handler = () => applyTheme();
+
       media.addEventListener("change", handler);
+
       return () => media.removeEventListener("change", handler);
     }
   }, [themeMode]);
 
   // 使用 useCoAgent 连接到 AmisEditorPageAgent
+
   const { state, setState } = useCoAgent<AmisAgentState>({
     name: "AmisEditorPageAgent",
+
     initialState: {
       tasks: [],
+
       currentTaskIndex: 0,
+
       executionLog: [],
+
       schema: DEFAULT_SCHEMA,
+
       userRequirement: "",
     },
   });
@@ -1299,56 +1428,98 @@ function AmisEditorPage() {
   useFrontendTool(
     {
       name: "updateAmisSchema",
+
       description: "更新 amis 页面配置 schema",
+
       parameters: [
         {
           name: "schema",
+
           type: "object",
+
           required: true,
         },
       ],
+
       handler: async ({ schema }: { schema: object }) => {
         const nextSchema = schema as Record<string, unknown>;
+
         updateSchema(nextSchema);
+
         return "schema 已更新";
       },
     },
+
     [],
   );
-
-  // 监听 agent 状态变化（用于调试和 UI 更新）
-  const ref = useRef<AmisInstance | null>(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
+  // 监听 state.schema 变化并自动更新 AMIS 编辑器
+  // 使用 useRef 存储上一次的 schema 字符串，避免因对象引用变化导致的无限重绘
+  const prevSchemaStrRef = useRef<string>("");
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (state.schema && state.schema !== DEFAULT_SCHEMA) {
+      // Clear the previous timeout
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+
+      // Set a new debounce timer
+      updateTimeoutRef.current = setTimeout(() => {
+        // Perform expensive operations inside the timeout callback
+        const currentSchemaStr = JSON.stringify(state.schema);
+
+        if (currentSchemaStr !== prevSchemaStrRef.current) {
+          console.log("Schema content changed, updating editor (debounced)...");
+          updateSchema(state.schema as Record<string, unknown>);
+          prevSchemaStrRef.current = currentSchemaStr;
+        }
+      }, 500);
+    }
+    // Cleanup on unmount
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, [state.schema, updateSchema]);
+
+  // 监听自定义事件 'apply-amis-schema' (来自 FinalResultCard)
+
+  useEffect(() => {
+    const handleApplyEvent = (event: Event) => {
+      const customEvent = event as CustomEvent;
+
+      if (customEvent.detail) {
+        updateSchema(customEvent.detail);
+      }
+    };
+
+    window.addEventListener("apply-amis-schema", handleApplyEvent);
+
+    return () => {
+      window.removeEventListener("apply-amis-schema", handleApplyEvent);
+    };
+  }, [updateSchema]);
+
   // 初始化 amis
+
   useEffect(() => {
     if (sdkReady && isClient && containerRef.current && !window.amisScoped) {
       const amis = window.amisRequire("amis/embed");
+
       ref.current = amis.embed(
         containerRef.current,
+
         state.schema || DEFAULT_SCHEMA,
       );
     }
   }, [sdkReady, isClient]);
-
-  // 当 schema 更新时重新渲染
-  // 当 schema 更新时重新渲染
-  const updateSchema = useCallback((newSchema: Record<string, unknown>) => {
-    console.log("准备更新 schema:", newSchema);
-    if (ref.current && typeof ref.current.updateSchema === "function") {
-      try {
-        ref.current.updateSchema(newSchema);
-        console.log("✅ Schema 更新成功");
-      } catch (error) {
-        console.error("❌ Schema 更新失败:", error);
-      }
-    } else {
-      console.warn("⚠️ amis 实例未就绪或 updateSchema 方法不可用");
-    }
-  }, []);
 
   if (!isClient) {
     return (
@@ -1700,6 +1871,7 @@ function FinalResultCard({
   schema: object;
   executionLog?: ExecutionEvent[];
 }) {
+  const [isJsonOpen, setIsJsonOpen] = useState(false);
   const handleCopyJson = () => {
     navigator.clipboard.writeText(JSON.stringify(schema, null, 2));
   };
@@ -1738,16 +1910,26 @@ function FinalResultCard({
       </div>
 
       {/* JSON 预览 */}
-      <details className="mb-3" open>
-        <summary className="cursor-pointer font-semibold text-sm text-gray-700 hover:text-blue-600">
-          📄 查看完整配置 (点击展开/折叠)
-        </summary>
-        <div className="mt-2 relative">
-          <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-auto max-h-96">
-            {JSON.stringify(schema, null, 2)}
-          </pre>
-        </div>
-      </details>
+      <div className="mb-3">
+        <button
+          onClick={() => setIsJsonOpen(!isJsonOpen)}
+          className="flex items-center gap-2 font-semibold text-sm text-gray-700 hover:text-blue-600 focus:outline-hidden"
+        >
+          <span
+            className={`transition-transform ${isJsonOpen ? "rotate-90" : ""}`}
+          >
+            ▶
+          </span>
+          📄 查看完整配置 {isJsonOpen ? "(点击折叠)" : "(点击展开)"}
+        </button>
+        {isJsonOpen && (
+          <div className="mt-2 relative">
+            <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-auto max-h-96">
+              {JSON.stringify(schema, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
 
       {/* 执行日志 */}
       {executionLog && executionLog.length > 0 && (

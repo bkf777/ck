@@ -1,12 +1,11 @@
 import { RunnableConfig } from "@langchain/core/runnables";
-import { ChatAnthropic } from "@langchain/anthropic";
 import { createChatModel } from "../../utils/model-factory.js";
-import { Command } from "@langchain/langgraph";
 import {
   AIMessage,
   SystemMessage,
   HumanMessage,
 } from "@langchain/core/messages";
+import { dispatchCustomEvent } from "@langchain/core/callbacks/dispatch";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
 import { parseJsonFromMarkdown, getMessageContentText } from "../utils.js";
@@ -55,7 +54,6 @@ function getLightweightSchema(schema: any): any {
  * 2. 任务执行节点 (Executor Node)
  * 职责：执行单个子任务，生成对应的 amis JSON 配置
  */
-// TODO: 提示词需要修改
 export async function executor_node(
   state: AmisAgentState,
   config: RunnableConfig,
@@ -88,10 +86,6 @@ export async function executor_node(
     temperature: 0.3,
   });
 
-  // 移除工具绑定，强制模型只生成文本 JSON
-  // 之前的绑定导致模型尝试调用工具而不是生成配置，导致 rawResult 为空引发死循环
-  const modelWithTools = model;
-
   // 对已有结果进行精简，避免 Context 过大
   const simplifiedResults = existingResults.map(getLightweightSchema);
 
@@ -114,21 +108,52 @@ export async function executor_node(
 ${JSON.stringify(processData.dataStructure, null, 2)}
 
 【数据绑定要求】
-1. 当前任务依赖的数据字段: ${
-      task.dataDependencies && task.dataDependencies.length > 0
-        ? JSON.stringify(task.dataDependencies)
-        : "未指定（请根据上下文推断）"
-    }
-2. **正确使用数据映射**：请参考 Amis 数据映射文档，灵活用 "\${variable}" 或 "\${a.b}"（链式取值）获取数据。
-3. **列表/数组数据源**：对于列表、表格、卡片等组件，**必须**使用 \`source\` 属性绑定数组路径（如 source: "\${rows}"）。请勿使用 \`data\` 属性直接绑定数组。
-4. **字段引用 vs 映射**：
-   - 定义组件字段名（如 Table 的 columns 或 Input 的 name）时，直接使用字段名字符串（如 name: "userName"）。
-   - 需要展示数据值（如 tpl, text, label 属性）时，才使用数据映射语法（如 tpl: "当前用户: \${userName}"）。
-5. **作用域与路径**：
-   - 列表项内部直接使用相对路径变量（如 "\${month}"）。
-   - 顶层数据使用完整路径（如 "\${summary.total}"）。
-6. **禁止硬编码**：所有业务数据必须通过 "\${...}" 绑定，严禁写入静态值。`;
+1. 优先使用上下文中的数据，通过 "\${variable}" 引用。
+2. 列表组件使用 
+source
+ 绑定数组路径。`;
+  } else {
+    prompt += `\n\n【数据源处理规则】(重要!!!)
+1. **默认使用 Mock 数据**：除非用户在描述中明确提到 
+'api'、'接口'、'后端' 或 'Fetch'，否则 **不要** 配置 
+'api'
+ 属性。
+2. **内嵌数据**：请直接在组件配置中通过 
+'data'
+ (Page/Form级别) 或 
+'source'
+ (Table/List级别) 属性注入符合业务场景的静态 Mock 数据。
+   - 例如 Table 组件：设置 
+'source: "\${items}"'
+ 并在外层或当前层级定义 
+'data: { items: [...] }'
+。
+   - 或者直接在 CRUD/Table 中写死 
+'data: { items: [...] }'
+ (如果是纯静态展示)。`;
   }
+
+  prompt += `\n\n【数据映射语法规范】(Critical)
+1. **对象属性访问**：必须使用点号（.）访问对象属性。
+   - ✅ 正确：
+platformWorksNumDist.youtube
+   - ❌ 错误：
+platformWorksNumDist | pick: youtube
+   - ❌ 错误：
+\${variable}platformWorksNumDist | raw: youtube
+2. **变量引用**：始终使用 
+variableName
+ 格式。
+
+【自检清单】
+- [ ] 是否正确使用了点号 (.) 访问对象属性？
+- [ ] 如果是 Table/List，是否包含了 
+'data'
+ 或 
+'source'
+ 形式的 Mock 数据？
+- [ ] 是否避免了配置未请求的 API？
+`;
 
   if (simplifiedResults.length > 0) {
     prompt += `\n\n已生成的组件（摘要）：
@@ -139,16 +164,16 @@ ${JSON.stringify(simplifiedResults, null, 2)}
 
   if (state.contextDocuments && state.contextDocuments.length > 0) {
     prompt += `\n\n以下是与本任务相关的文档摘录（供参考）：\n${state.contextDocuments
-        .slice(0, 3)
-        .map(
-          (d, i) =>
-            `【文档${i + 1}】${d.path}\n摘要：${d.summary || ""}\n示例：\n${(
-              d.codeExamples || []
-            )
-              .slice(0, 1)
-              .join("\n")}`,
-        )
-        .join("\n\n")}\n请遵循文档规范进行配置。`;
+      .slice(0, 3)
+      .map(
+        (d, i) =>
+          `【文档${i + 1}】${d.path}\n摘要：${d.summary || ""}\n示例：\n${(
+            d.codeExamples || []
+          )
+            .slice(0, 1)
+            .join("\n")}`,
+      )
+      .join("\n\n")}\n请遵循文档规范进行配置。`;
   }
 
   prompt += `
@@ -165,9 +190,7 @@ ${JSON.stringify(simplifiedResults, null, 2)}
   // 调用 LLM
   let response;
   try {
-    response = await modelWithTools.invoke(
-      [new HumanMessage({ content: prompt })],
-    );
+    response = await model.invoke([new HumanMessage({ content: prompt })]);
   } catch (e) {
     console.error("FATAL: Executor Node LLM invoke failed", e);
     return {
@@ -189,7 +212,44 @@ ${JSON.stringify(simplifiedResults, null, 2)}
   tasks[currentIndex].rawResult = rawResult;
   tasks[currentIndex].status = "in_progress";
 
-  console.log(`📡 [Executor] 任务 ${task.id} 生成原始配置完成，进入验证阶段`);
+  console.log(
+    `📡 [Executor] 任务 ${task.id} 生成原始配置完成，进入预览组装阶段`,
+  );
+
+  // --- 尝试生成部分预览 ---
+  let partialSchema = state.schema;
+  try {
+    const currentJson = parseJsonFromMarkdown(rawResult);
+
+    // 收集所有已有的结果 (已完成 + 当前)
+    const allResults = [
+      ...existingResults.map((r) =>
+        typeof r === "string" ? parseJsonFromMarkdown(r) : r,
+      ),
+      currentJson,
+    ];
+
+    // 简单的组合成一个 Page
+    partialSchema = {
+      type: "page",
+      title: "页面生成中...",
+      body: allResults.map((comp, idx) => ({
+        type: "wrapper",
+        className:
+          "border-2 border-dashed border-blue-200 p-2 mb-2 rounded relative",
+        body: [
+          {
+            type: "tpl",
+            tpl: `<div class="absolute top-0 right-0 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-bl">Part ${idx + 1}</div>`,
+          },
+          comp,
+        ],
+      })),
+    };
+  } catch (e) {
+    console.warn("Partial preview generation failed:", e);
+  }
+  // -------------------------
 
   const event: ExecutionEvent = {
     type: "generation_progress",
@@ -198,8 +258,21 @@ ${JSON.stringify(simplifiedResults, null, 2)}
     message: `任务 ${task.id} 已生成原始配置，准备验证...`,
   };
 
+  // 立即推送状态更新给前端
+  await dispatchCustomEvent(
+    "manually_emit_state",
+    {
+      ...state,
+      tasks,
+      schema: partialSchema,
+      executionLog: [...(state.executionLog || []), event],
+    },
+    config,
+  );
+
   return {
     tasks,
+    schema: partialSchema, // 更新 schema 以便前端预览
     executionLog: [...(state.executionLog || []), event],
     // 本轮用过的上下文清空
     contextDocuments: [],

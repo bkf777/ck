@@ -95,32 +95,48 @@ export async function planner_node(
   }
 
   // 注入文档索引以辅助类型选择
-  promptText += `\n\n【Amis 组件/文档索引】
-请根据需求选择最匹配的 type（优先使用以下关键词）：
+  promptText += `\n\n【Amis 组件类型索引】(必需严格遵守)
+请为每个任务指定准确的组件 type（必须是以下列表中的有效值）：
 
 1. 页面/容器类
-   - page (页面)
-   - crud (增删改查列表/表格)
+   - page (页面根节点)
+   - service (数据服务/Mock数据容器)
    - form (表单容器)
    - wizard (向导)
    - dialog (弹窗)
    - drawer (抽屉)
-   - service (数据服务容器)
+   - wrapper (简单容器)
 
-2. 功能/展示类
-   - chart (图表)
+2. 数据展示类
+   - table (静态表格)
+   - crud (增删改查高级列表)
    - cards (卡片列表)
-   - tpl (模板/展示)
+   - list (普通列表)
+   - chart (图表)
+   - tpl (HTML/文本模板)
+   - json (JSON展示)
+   - image (图片)
    - video (视频)
    - audio (音频)
-   - tasks (任务操作栏)
 
 3. 布局类
    - flex (Flex布局)
    - grid (网格布局)
-   - container (容器)
+   - hbox (水平布局)
+   - container (通用容器)
+   - divider (分割线)
 
-⚠️ 注意：尽量聚合任务！例如用户需要一个"包含姓名、年龄的查询表单"，请生成一个 type="form" 的任务，描述中包含所有字段要求，而不是生成两个 type="input-text" 的任务。
+4. 功能类
+   - action (通用动作/按钮)
+   - button (按钮)
+   - button-group (按钮组)
+   - tasks (异步任务)
+   - nav (导航)
+
+⚠️ 注意：
+1. **Type 准确性**：必须使用上述英文 type 字符串，严禁臆造（如不要用 'user-list'，应使用 'crud' 或 'table'）。
+2. **数据源原则**：除非用户明确要求 "从接口获取"、"连接后端" 或 "API"，否则**默认使用静态数据**。不要配置 API 地址，而是将 Mock 数据直接写入配置。
+3. **任务聚合**：尽量聚合任务！例如用户需要一个"包含姓名、年龄的查询表单"，请生成一个 type="form" 的任务，描述中包含所有字段要求，而不是生成两个 type="input-text" 的任务。
 `;
 
   if (isRetry) {

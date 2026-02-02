@@ -51,16 +51,19 @@ export const POST = async (req: NextRequest) => {
       endpoint: "/api/copilotkit/amis",
     });
 
-    return handleRequest(req);
+    return await handleRequest(req);
   } catch (error) {
     console.error(
-      `Agent connection error (deploymentUrl: ${deploymentUrl}):`,
+      `[CopilotKit] Agent connection error (deploymentUrl: ${deploymentUrl}). 
+      Ensure 'apps/agent' is running (pnpm dev) and accessible at port 8123.
+      Error details:`,
       error,
     );
     return NextResponse.json(
       {
         error: "Agent service unavailable",
         details: error instanceof Error ? error.message : "Unknown error",
+        tip: "Please make sure the backend agent is running on port 8123.",
       },
       { status: 503 },
     );

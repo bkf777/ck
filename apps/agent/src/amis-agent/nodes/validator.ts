@@ -1,4 +1,5 @@
 import { RunnableConfig } from "@langchain/core/runnables";
+import { dispatchCustomEvent } from "@langchain/core/callbacks/dispatch";
 import { AmisAgentState } from "../state.js";
 import { parseJsonFromMarkdown } from "../utils.js";
 import { ExecutionEvent } from "../types.js";
@@ -70,11 +71,51 @@ export async function validator_node(
         data: json,
     };
 
+    // --- 构建预览 Schema 并推送 ---
+    // 收集之前已完成的任务结果 + 当前结果
+    // 注意：tasks 数组中，索引小于 currentIndex 的任务应该都是 completed 的
+    const completedResults = tasks
+        .slice(0, currentIndex + 1) // 包含当前任务
+        .filter(t => t.status === 'completed' && t.result)
+        .map(t => t.result);
+
+    // 简单组装成一个 Page，用于前端预览
+    const partialSchema = {
+        type: "page",
+        title: "正在构建中...",
+        body: completedResults.map((comp, idx) => ({
+            type: "wrapper",
+            className: "border-2 border-dashed border-green-200 p-2 mb-2 rounded relative",
+            body: [
+                 {
+                    type: "tpl",
+                    tpl: `<div class="absolute top-0 right-0 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-bl">Part ${idx + 1} (Verified)</div>`,
+                 },
+                 comp
+            ]
+        }))
+    };
+
+    // 立即推送状态更新给前端
+    await dispatchCustomEvent(
+        "manually_emit_state",
+        {
+            ...state,
+            tasks,
+            currentTaskIndex: currentIndex + 1, // 预测推进
+            schema: partialSchema,
+            executionLog: [...(state.executionLog || []), event],
+        },
+        config
+    );
+    // --------------------------------
+
     // 成功后推进任务索引
     return {
       tasks,
       currentTaskIndex: currentIndex + 1,
       executionLog: [...(state.executionLog || []), event],
+      schema: partialSchema // 更新状态中的 schema
     };
 
   } catch (error) {
