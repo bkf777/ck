@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Sun, Moon, Monitor } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useAmisSdk } from "../hooks/use-amis-sdk";
 
 type AmisInstance = {
   updateSchema: (schema: Record<string, unknown>) => void;
@@ -18,75 +19,12 @@ declare global {
   }
 }
 
-function ThemeSwitcher({
-  current,
-  onChange,
-}: {
-  current: string;
-  onChange: (v: any) => void;
-}) {
-  return (
-    <div className="absolute top-6 right-6 z-50 bg-white/90 dark:bg-slate-800/90 backdrop-blur border border-slate-200 dark:border-slate-700 p-1.5 rounded-full flex gap-1 shadow-xl transition-all">
-      <button
-        onClick={() => onChange("light")}
-        className={`p-2 rounded-full transition-all ${current === "light" ? "bg-violet-100 text-violet-600 shadow-sm" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"}`}
-        title="Light Mode"
-        aria-label="Light Mode"
-      >
-        <Sun size={18} />
-      </button>
-      <button
-        onClick={() => onChange("dark")}
-        className={`p-2 rounded-full transition-all ${current === "dark" ? "bg-violet-100 text-violet-600 shadow-sm" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"}`}
-        title="Dark Mode"
-        aria-label="Dark Mode"
-      >
-        <Moon size={18} />
-      </button>
-      <button
-        onClick={() => onChange("system")}
-        className={`p-2 rounded-full transition-all ${current === "system" ? "bg-violet-100 text-violet-600 shadow-sm" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"}`}
-        title="System"
-        aria-label="Follow system theme"
-      >
-        <Monitor size={18} />
-      </button>
-    </div>
-  );
-}
-
 export default function AmisEditorPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
+  const sdkReady = useAmisSdk();
   const ref = useRef<AmisInstance | null>(null);
 
-  useEffect(() => {
-    // Check if AMIS is already available
-    if ((window as any).amisRequire) {
-      setSdkReady(true);
-    }
-
-    // Listen for the ready event
-    const onAmisReady = () => setSdkReady(true);
-    window.addEventListener("amis-ready", onAmisReady);
-
-    // Safety check interval
-    const interval = setInterval(() => {
-      if ((window as any).amisRequire) {
-        setSdkReady(true);
-        clearInterval(interval);
-      }
-    }, 200);
-
-    return () => {
-      window.removeEventListener("amis-ready", onAmisReady);
-      clearInterval(interval);
-    };
-  }, []);
-  const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">(
-    "system",
-  );
   const router = useRouter();
 
   const DEFAULT_SCHEMA = useMemo(
@@ -203,23 +141,23 @@ export default function AmisEditorPage() {
                 },
               ],
             },
-            // Decorative Blobs - using plain with empty text to ensure render as div
+            // Decorative Blobs - Optimized for performance (static gradients, no heavy blur/animation)
             {
               type: "container",
               className:
-                "absolute top-0 left-0 w-96 h-96 bg-purple-300 dark:bg-purple-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-30 dark:opacity-20 animate-blob",
+                "absolute top-0 left-0 w-96 h-96 bg-purple-300/30 dark:bg-purple-900/20 rounded-full",
               body: [],
             },
             {
               type: "container",
               className:
-                "absolute top-0 right-0 w-96 h-96 bg-yellow-300 dark:bg-blue-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-30 dark:opacity-20 animate-blob animation-delay-2000",
+                "absolute top-0 right-0 w-96 h-96 bg-yellow-300/30 dark:bg-blue-900/20 rounded-full",
               body: [],
             },
             {
               type: "container",
               className:
-                "absolute -bottom-8 left-20 w-96 h-96 bg-pink-300 dark:bg-fuchsia-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-30 dark:opacity-20 animate-blob animation-delay-4000",
+                "absolute -bottom-8 left-20 w-96 h-96 bg-pink-300/30 dark:bg-fuchsia-900/20 rounded-full",
               body: [],
             },
           ],
@@ -508,56 +446,6 @@ export default function AmisEditorPage() {
     [],
   );
 
-  // 在客户端挂载时从 localStorage 恢复用户偏好
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("amis-theme") as
-        | "light"
-        | "dark"
-        | "system"
-        | null;
-      if (saved) setThemeMode(saved);
-    } catch (e) {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    const applyTheme = () => {
-      const isSystemDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches;
-      const shouldBeDark =
-        themeMode === "dark" || (themeMode === "system" && isSystemDark);
-
-      if (shouldBeDark) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    };
-
-    applyTheme();
-
-    // 持久化用户选择：如果选择 system，则清除显式存储；否则保存选择
-    try {
-      if (themeMode === "system") {
-        localStorage.removeItem("amis-theme");
-      } else {
-        localStorage.setItem("amis-theme", themeMode);
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    if (themeMode === "system") {
-      const media = window.matchMedia("(prefers-color-scheme: dark)");
-      const handler = () => applyTheme();
-      media.addEventListener("change", handler);
-      return () => media.removeEventListener("change", handler);
-    }
-  }, [themeMode]);
-
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -586,7 +474,6 @@ export default function AmisEditorPage() {
             id="amis-app-container"
             className="h-full w-full"
           />
-          <ThemeSwitcher current={themeMode} onChange={setThemeMode} />
         </div>
       </main>
     </>

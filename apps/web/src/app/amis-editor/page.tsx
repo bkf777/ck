@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, memo, useMemo } from "react";
 
 // ... imports
 import { CopilotSidebar, CopilotChat } from "@copilotkit/react-ui";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Sun, Moon, Monitor, CheckIcon, ClockIcon } from "lucide-react";
 import {
   useCoAgent,
   useCoAgentStateRender,
   useCopilotReadable,
   useFrontendTool,
 } from "@copilotkit/react-core";
-
 import { type AmisAgentState } from "../../../../agent/src/amis-agent/state";
 import {
   type Task,
@@ -20,6 +19,8 @@ import {
 
 // 动态导入 qiankun 避免 SSR 报错
 let loadMicroApp: any;
+
+import { useAmisSdk } from "../../hooks/use-amis-sdk";
 
 const DEFAULT_SCHEMA = {
   type: "page",
@@ -945,34 +946,183 @@ type AmisInstance = {
 
 export default function AmisAgentChat() {
   const { theme } = { theme: "light" }; // Simple theme mock or use a real hook if available
-
   useCoAgentStateRender<AmisAgentState>({
-    name: "AmisEditorPageAgent",
+    name: "generative_ui",
     render: ({ state }) => {
       if (!state.tasks || state.tasks.length === 0) {
         return null;
       }
 
-      const completedCount = state.currentTaskIndex || 0;
+      const completedCount = state.tasks.filter(
+        (step) => step.status === "completed",
+      ).length;
       const progressPercentage = (completedCount / state.tasks.length) * 100;
 
-      // Calculate active task
-      const activeTaskIndex = state.currentTaskIndex ?? 0;
-
       return (
-        <div className="flex flex-col gap-4 p-4 bg-white/50 backdrop-blur-sm rounded-xl border border-gray-100 shadow-sm mt-4">
-          {/* Re-use the TaskProgressCard logic or component here if possible, 
-               but since TaskProgressCard takes props, we can just use it! 
-           */}
-          <TaskProgressCard
-            tasks={state.tasks}
-            currentTaskIndex={state.currentTaskIndex || 0}
-          />
+        <div className="flex">
+          <div
+            data-testid="task-progress"
+            className={`relative rounded-xl w-[700px] p-6 shadow-lg backdrop-blur-sm ${
+              theme === "dark"
+                ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white border border-slate-700/50 shadow-2xl"
+                : "bg-gradient-to-br from-white via-gray-50 to-white text-gray-800 border border-gray-200/80"
+            }`}
+          >
+            {/* Header */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Task Progress
+                </h3>
+                <div
+                  className={`text-sm ${theme === "dark" ? "text-slate-400" : "text-gray-500"}`}
+                >
+                  {completedCount}/{state.tasks.length} Complete
+                </div>
+              </div>
 
-          <FinalResultCard
-            schema={state.schema || {}}
-            executionLog={state.executionLog}
-          />
+              {/* Progress Bar */}
+              <div
+                className={`relative h-2 rounded-full overflow-hidden ${theme === "dark" ? "bg-slate-700" : "bg-gray-200"}`}
+              >
+                <div
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+                <div
+                  className={`absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent to-transparent animate-pulse ${
+                    theme === "dark" ? "via-white/20" : "via-white/40"
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* tasks */}
+            <div className="space-y-2">
+              {state.tasks.map((step, index) => {
+                const isCompleted = step.status === "completed";
+                const isCurrentPending =
+                  step.status === "pending" &&
+                  index ===
+                    state.tasks.findIndex((s) => s.status === "pending");
+                const isFuturePending =
+                  step.status === "pending" && !isCurrentPending;
+
+                return (
+                  <div
+                    key={index}
+                    className={`relative flex items-center p-2.5 rounded-lg transition-all duration-500 ${
+                      isCompleted
+                        ? theme === "dark"
+                          ? "bg-gradient-to-r from-green-900/30 to-emerald-900/20 border border-green-500/30"
+                          : "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/60"
+                        : isCurrentPending
+                          ? theme === "dark"
+                            ? "bg-gradient-to-r from-blue-900/40 to-purple-900/30 border border-blue-500/50 shadow-lg shadow-blue-500/20"
+                            : "bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200/60 shadow-md shadow-blue-200/50"
+                          : theme === "dark"
+                            ? "bg-slate-800/50 border border-slate-600/30"
+                            : "bg-gray-50/50 border border-gray-200/60"
+                    }`}
+                  >
+                    {/* Connector Line */}
+                    {index < state.tasks.length - 1 && (
+                      <div
+                        className={`absolute left-5 top-full w-0.5 h-2 bg-gradient-to-b ${
+                          theme === "dark"
+                            ? "from-slate-500 to-slate-600"
+                            : "from-gray-300 to-gray-400"
+                        }`}
+                      />
+                    )}
+
+                    {/* Status Icon */}
+                    <div
+                      className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+                        isCompleted
+                          ? theme === "dark"
+                            ? "bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30"
+                            : "bg-gradient-to-br from-green-500 to-emerald-600 shadow-md shadow-green-200"
+                          : isCurrentPending
+                            ? theme === "dark"
+                              ? "bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30"
+                              : "bg-gradient-to-br from-blue-500 to-purple-600 shadow-md shadow-blue-200"
+                            : theme === "dark"
+                              ? "bg-slate-700 border border-slate-600"
+                              : "bg-gray-300 border border-gray-400"
+                      }`}
+                    >
+                      {isCompleted ? (
+                        <CheckIcon />
+                      ) : isCurrentPending ? (
+                        <ClockIcon className="animate-spin" />
+                      ) : (
+                        <ClockIcon />
+                      )}
+                    </div>
+
+                    {/* Step Content */}
+                    <div className="flex-1 min-w-0">
+                      <div
+                        data-testid="task-step-text"
+                        className={`font-semibold transition-all duration-300 text-sm ${
+                          isCompleted
+                            ? theme === "dark"
+                              ? "text-green-300"
+                              : "text-green-700"
+                            : isCurrentPending
+                              ? theme === "dark"
+                                ? "text-blue-300 text-base"
+                                : "text-blue-700 text-base"
+                              : theme === "dark"
+                                ? "text-slate-400"
+                                : "text-gray-500"
+                        }`}
+                      >
+                        {step.description}
+                      </div>
+                      {isCurrentPending && (
+                        <div
+                          className={`text-sm mt-1 animate-pulse ${
+                            theme === "dark" ? "text-blue-400" : "text-blue-600"
+                          }`}
+                        >
+                          Processing...
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Animated Background for Current Step */}
+                    {isCurrentPending && (
+                      <div
+                        className={`absolute inset-0 rounded-lg bg-gradient-to-r animate-pulse ${
+                          theme === "dark"
+                            ? "from-blue-500/10 to-purple-500/10"
+                            : "from-blue-100/50 to-purple-100/50"
+                        }`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Decorative Elements */}
+            <div
+              className={`absolute top-3 right-3 w-16 h-16 rounded-full blur-xl ${
+                theme === "dark"
+                  ? "bg-gradient-to-br from-blue-500/10 to-purple-500/10"
+                  : "bg-gradient-to-br from-blue-200/30 to-purple-200/30"
+              }`}
+            />
+            <div
+              className={`absolute bottom-3 left-3 w-12 h-12 rounded-full blur-xl ${
+                theme === "dark"
+                  ? "bg-gradient-to-br from-green-500/10 to-emerald-500/10"
+                  : "bg-gradient-to-br from-green-200/30 to-emerald-200/30"
+              }`}
+            />
+          </div>
         </div>
       );
     },
@@ -1248,69 +1398,20 @@ export default function AmisAgentChat() {
   );
 }
 
-function ThemeSwitcher({
-  current,
-  onChange,
-}: {
-  current: string;
-  onChange: (v: any) => void;
-}) {
-  return (
-    <div className="absolute top-6 right-6 z-50 bg-white/90 dark:bg-slate-800/90 backdrop-blur border border-slate-200 dark:border-slate-700 p-1.5 rounded-full flex gap-1 shadow-xl transition-all">
-      <button
-        onClick={() => onChange("light")}
-        className={`p-2 rounded-full transition-all ${current === "light" ? "bg-violet-100 text-violet-600 shadow-sm" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"}`}
-        title="Light Mode"
-        aria-label="Light Mode"
-      >
-        <Sun size={18} />
-      </button>
-      <button
-        onClick={() => onChange("dark")}
-        className={`p-2 rounded-full transition-all ${current === "dark" ? "bg-violet-100 text-violet-600 shadow-sm" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"}`}
-        title="Dark Mode"
-        aria-label="Dark Mode"
-      >
-        <Moon size={18} />
-      </button>
-      <button
-        onClick={() => onChange("system")}
-        className={`p-2 rounded-full transition-all ${current === "system" ? "bg-violet-100 text-violet-600 shadow-sm" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"}`}
-        title="System"
-        aria-label="Follow system theme"
-      >
-        <Monitor size={18} />
-      </button>
-    </div>
-  );
-}
-
 function AmisEditorPage() {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const microAppRef = useRef<any>(null);
-
   const [isClient, setIsClient] = useState(false);
-
-  const [sdkReady, setSdkReady] = useState(false);
-
-  const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">(
-    "system",
-  );
-
-  // 监听 agent 状态变化（用于调试和 UI 更新）
+  const sdkReady = useAmisSdk();
 
   const ref = useRef<AmisInstance | null>(null);
 
   // 当 schema 更新时重新渲染
-
   const updateSchema = useCallback((newSchema: Record<string, unknown>) => {
     console.log("准备更新 schema:", newSchema);
 
     if (ref.current && typeof ref.current.updateSchema === "function") {
       try {
         ref.current.updateSchema(newSchema);
-
         console.log("✅ Schema 更新成功");
       } catch (error) {
         console.error("❌ Schema 更新失败:", error);
@@ -1320,206 +1421,28 @@ function AmisEditorPage() {
     }
   }, []);
 
-  useEffect(() => {
-    // Check if AMIS is already available
-
-    if ((window as any).amisRequire) {
-      setSdkReady(true);
-    }
-
-    // Listen for the ready event
-
-    const onAmisReady = () => setSdkReady(true);
-
-    window.addEventListener("amis-ready", onAmisReady);
-
-    // Safety check interval
-
-    const interval = setInterval(() => {
-      if ((window as any).amisRequire) {
-        setSdkReady(true);
-
-        clearInterval(interval);
-      }
-    }, 200);
-
-    return () => {
-      window.removeEventListener("amis-ready", onAmisReady);
-
-      clearInterval(interval);
-    };
-  }, []);
-
-  // 在客户端挂载时从 localStorage 恢复用户偏好
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("amis-theme") as
-        | "light"
-        | "dark"
-        | "system"
-        | null;
-
-      if (saved) setThemeMode(saved);
-    } catch (e) {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    const applyTheme = () => {
-      const isSystemDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches;
-
-      const shouldBeDark =
-        themeMode === "dark" || (themeMode === "system" && isSystemDark);
-
-      if (shouldBeDark) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    };
-
-    applyTheme();
-
-    // 持久化用户选择：如果选择 system，则清除显式存储；否则保存选择
-
-    try {
-      if (themeMode === "system") {
-        localStorage.removeItem("amis-theme");
-      } else {
-        localStorage.setItem("amis-theme", themeMode);
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    if (themeMode === "system") {
-      const media = window.matchMedia("(prefers-color-scheme: dark)");
-
-      const handler = () => applyTheme();
-
-      media.addEventListener("change", handler);
-
-      return () => media.removeEventListener("change", handler);
-    }
-  }, [themeMode]);
-
-  // 使用 useCoAgent 连接到 AmisEditorPageAgent
-
-  const { state, setState } = useCoAgent<AmisAgentState>({
+  const { state } = useCoAgent<AmisAgentState>({
     name: "AmisEditorPageAgent",
-
     initialState: {
-      tasks: [],
-
-      currentTaskIndex: 0,
-
-      executionLog: [],
-
       schema: DEFAULT_SCHEMA,
-
-      userRequirement: "",
     },
   });
 
-  useFrontendTool(
-    {
-      name: "updateAmisSchema",
+  useEffect(() => {
+    updateSchema(state.schema as any);
+  }, [state.schema]);
 
-      description: "更新 amis 页面配置 schema",
-
-      parameters: [
-        {
-          name: "schema",
-
-          type: "object",
-
-          required: true,
-        },
-      ],
-
-      handler: async ({ schema }: { schema: object }) => {
-        const nextSchema = schema as Record<string, unknown>;
-
-        updateSchema(nextSchema);
-
-        return "schema 已更新";
-      },
-    },
-
-    [],
-  );
+  // 初始化 amis
+  useEffect(() => {
+    if (sdkReady && isClient && containerRef.current && !window.amisScoped) {
+      const amis = window.amisRequire("amis/embed");
+      ref.current = amis.embed(containerRef.current, DEFAULT_SCHEMA);
+    }
+  }, [sdkReady, isClient]);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  // 监听 state.schema 变化并自动更新 AMIS 编辑器
-  // 使用 useRef 存储上一次的 schema 字符串，避免因对象引用变化导致的无限重绘
-  const prevSchemaStrRef = useRef<string>("");
-  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (state.schema && state.schema !== DEFAULT_SCHEMA) {
-      // Clear the previous timeout
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
-
-      // Set a new debounce timer
-      updateTimeoutRef.current = setTimeout(() => {
-        // Perform expensive operations inside the timeout callback
-        const currentSchemaStr = JSON.stringify(state.schema);
-
-        if (currentSchemaStr !== prevSchemaStrRef.current) {
-          console.log("Schema content changed, updating editor (debounced)...");
-          updateSchema(state.schema as Record<string, unknown>);
-          prevSchemaStrRef.current = currentSchemaStr;
-        }
-      }, 500);
-    }
-    // Cleanup on unmount
-    return () => {
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
-    };
-  }, [state.schema, updateSchema]);
-
-  // 监听自定义事件 'apply-amis-schema' (来自 FinalResultCard)
-
-  useEffect(() => {
-    const handleApplyEvent = (event: Event) => {
-      const customEvent = event as CustomEvent;
-
-      if (customEvent.detail) {
-        updateSchema(customEvent.detail);
-      }
-    };
-
-    window.addEventListener("apply-amis-schema", handleApplyEvent);
-
-    return () => {
-      window.removeEventListener("apply-amis-schema", handleApplyEvent);
-    };
-  }, [updateSchema]);
-
-  // 初始化 amis
-
-  useEffect(() => {
-    if (sdkReady && isClient && containerRef.current && !window.amisScoped) {
-      const amis = window.amisRequire("amis/embed");
-
-      ref.current = amis.embed(
-        containerRef.current,
-
-        state.schema || DEFAULT_SCHEMA,
-      );
-    }
-  }, [sdkReady, isClient]);
 
   if (!isClient) {
     return (
@@ -1538,7 +1461,6 @@ function AmisEditorPage() {
             id="amis-app-container"
             className="h-full w-full"
           />
-          <ThemeSwitcher current={themeMode} onChange={setThemeMode} />
         </div>
       </main>
     </>
@@ -1665,12 +1587,56 @@ function DocRetrievalCard({
  */
 
 /**
+ * 优化后的 JSON 查看组件
+ * 只在展开时或数据变化时进行序列化，避免昂贵的渲染开销
+ */
+function JsonViewer({
+  data,
+  title = "查看结果",
+  className = "mt-1",
+}: {
+  data: any;
+  title?: string;
+  className?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // 只有在打开时才计算 JSON 字符串
+  const jsonString = useMemo(() => {
+    if (!isOpen) return "";
+    return JSON.stringify(data, null, 2);
+  }, [data, isOpen]);
+
+  return (
+    <div className={className}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-xs text-green-600 cursor-pointer hover:underline flex items-center gap-1 focus:outline-hidden"
+      >
+        <span
+          className={`transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+        >
+          ▶
+        </span>
+        {title}
+      </button>
+      {isOpen && (
+        <pre className="mt-1 p-2 bg-gray-900 text-green-400 rounded-md text-xs overflow-auto max-h-48 shadow-inner">
+          {jsonString}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+/**
  * 任务进度卡片组件
  * 用于显示任务规划和执行进度
+ * 使用 React.memo 避免不必要的重绘
  */
 import { Check, Clock, Loader2 } from "lucide-react";
 
-function TaskProgressCard({
+const TaskProgressCard = memo(function TaskProgressCard({
   tasks,
   currentTaskIndex,
 }: {
@@ -1683,7 +1649,6 @@ function TaskProgressCard({
   const progressPercentage = (completedCount / tasks.length) * 100;
   // 简化的 theme 处理，默认 light
   const theme: string = "light";
-  // const theme: "light" | "dark" = "light";
 
   return (
     <div className="flex">
@@ -1729,7 +1694,6 @@ function TaskProgressCard({
           {tasks.map((task, index) => {
             const isCompleted = index < currentTaskIndex;
             const isCurrentPending = index === currentTaskIndex;
-            // const isFuturePending = index > currentTaskIndex; // unused
 
             return (
               <div
@@ -1814,14 +1778,7 @@ function TaskProgressCard({
                     </div>
                   )}
                   {isCompleted && task.result && (
-                    <details className="mt-1">
-                      <summary className="text-xs text-green-600 cursor-pointer hover:underline">
-                        查看结果
-                      </summary>
-                      <pre className="mt-1 p-2 bg-gray-900 text-green-400 rounded text-xs overflow-auto max-h-24">
-                        {JSON.stringify(task.result, null, 2)}
-                      </pre>
-                    </details>
+                    <JsonViewer data={task.result} title="查看结果" />
                   )}
                 </div>
 
@@ -1858,41 +1815,58 @@ function TaskProgressCard({
       </div>
     </div>
   );
-}
+});
 
 /**
+
  * 最终结果卡片组件
+
  * 用于显示生成的 amis JSON 配置
+
+ * 使用 React.memo 避免不必要的重绘
+
  */
-function FinalResultCard({
+
+const FinalResultCard = memo(function FinalResultCard({
   schema,
   executionLog,
+  onApply,
 }: {
   schema: object;
   executionLog?: ExecutionEvent[];
+  onApply?: (schema: any) => void;
 }) {
   const [isJsonOpen, setIsJsonOpen] = useState(false);
+
   const handleCopyJson = () => {
     navigator.clipboard.writeText(JSON.stringify(schema, null, 2));
   };
 
   const handleApplySchema = () => {
-    // 触发自定义事件来应用 schema
-    window.dispatchEvent(
-      new CustomEvent("apply-amis-schema", { detail: schema }),
-    );
+    if (onApply) {
+      onApply(schema);
+    }
   };
+
+  const jsonString = useMemo(() => {
+    if (!isJsonOpen) return "";
+
+    return JSON.stringify(schema, null, 2);
+  }, [schema, isJsonOpen]);
 
   return (
     <div className="bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-5 mb-3 shadow-lg">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <span className="text-3xl">🎉</span>
+
           <div>
             <h4 className="font-bold text-lg text-gray-800">配置生成完成</h4>
+
             <p className="text-sm text-gray-600">amis JSON 已准备就绪</p>
           </div>
         </div>
+
         <div className="flex gap-2">
           <button
             className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition flex items-center gap-2"
@@ -1900,6 +1874,7 @@ function FinalResultCard({
           >
             <span>📋</span> 复制 JSON
           </button>
+
           <button
             className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition flex items-center gap-2"
             onClick={handleApplySchema}
@@ -1910,35 +1885,39 @@ function FinalResultCard({
       </div>
 
       {/* JSON 预览 */}
+
       <div className="mb-3">
         <button
           onClick={() => setIsJsonOpen(!isJsonOpen)}
           className="flex items-center gap-2 font-semibold text-sm text-gray-700 hover:text-blue-600 focus:outline-hidden"
         >
           <span
-            className={`transition-transform ${isJsonOpen ? "rotate-90" : ""}`}
+            className={`transition-transform duration-200 ${isJsonOpen ? "rotate-90" : ""}`}
           >
             ▶
           </span>
           📄 查看完整配置 {isJsonOpen ? "(点击折叠)" : "(点击展开)"}
         </button>
+
         {isJsonOpen && (
           <div className="mt-2 relative">
             <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-auto max-h-96">
-              {JSON.stringify(schema, null, 2)}
+              {jsonString}
             </pre>
           </div>
         )}
       </div>
 
       {/* 执行日志 */}
+
       {executionLog && executionLog.length > 0 && (
         <details>
           <summary className="cursor-pointer font-semibold text-sm text-gray-700 hover:text-blue-600">
             📊 执行日志 ({executionLog.length} 条记录)
           </summary>
+
           <div className="mt-2 bg-white rounded-lg p-3 max-h-48 overflow-auto">
-            {executionLog.map((event, index) => (
+            {executionLog.slice(-50).map((event, index) => (
               <div
                 key={index}
                 className="text-xs border-l-2 border-gray-300 pl-3 mb-2 last:mb-0"
@@ -1947,6 +1926,7 @@ function FinalResultCard({
                   <span className="text-gray-400">
                     {new Date(event.timestamp).toLocaleTimeString()}
                   </span>
+
                   <span
                     className={`px-1.5 py-0.5 rounded text-xs ${
                       event.type === "error"
@@ -1959,6 +1939,7 @@ function FinalResultCard({
                     {event.type}
                   </span>
                 </div>
+
                 {event.message && (
                   <p className="text-gray-600 mt-1">{event.message}</p>
                 )}
@@ -1969,7 +1950,7 @@ function FinalResultCard({
       )}
     </div>
   );
-}
+});
 
 /**
  * 执行日志时间线组件

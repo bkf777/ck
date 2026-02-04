@@ -8,5 +8,6 @@
     "starterAgent": "./src/agent.ts:graph",
     "amisAgent": "./src/amis-agent/graph.ts:graph"
   },
+  "n_workers": 1,
   "env": ".env"
 }
