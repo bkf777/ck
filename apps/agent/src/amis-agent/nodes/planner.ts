@@ -35,7 +35,7 @@ const PLAN_TASKS_SCHEMA = z.object({
     priority: z.number().describe("优先级：1=高, 2=中, 3=低"),
     dataDependencies: z.array(z.string()).optional().describe("该任务需要引用的数据结构中具体的字段名"),
     status: z.literal("pending").describe("初始状态，固定为 'pending'")
-  })).min(1).max(3).describe("AMIS 任务规划列表。原则：少即是多（通常1-2个任务足以覆盖），除非用户明确要求API，否则默认使用静态 Mock 数据。")
+  })).min(1).max(5).describe("AMIS 任务规划列表。原则：将页面拆解为可视化的“积木块”（如：1.顶部统计卡片 2.搜索过滤栏 3.核心数据表格 4.详情弹窗），以便逐步流式渲染。")
 });
 
 /**
@@ -64,7 +64,12 @@ export async function planner_node(
   });
 
   // --- 2. 极其简化的 Prompt：只负责传递上下文 ---
-  let promptText = `请分析以下用户需求，通过调用 generate_amis_tasks 规划高效的实施任务：
+  let promptText = `请分析以下用户需求，通过调用 generate_amis_tasks 规划高效的实施任务。
+
+[规划策略]
+1. **视觉分块**：不要创建一个巨大的任务。将页面拆分为独立的视觉区域（例如：Header/Title -> Metrics/Cards -> Search/Filter -> Main Table -> Edit Dialog）。
+2. **渐进式构建**：任务顺序应符合用户的视觉浏览习惯（从上到下）。
+3. **样式美观**：在任务描述中暗示需要“现代化 UI”、“卡片式布局”等要求。
 
 [用户需求]
 ${userRequirement}`;

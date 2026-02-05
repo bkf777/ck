@@ -4,7 +4,16 @@ import { useEffect, useRef, useState, useCallback, memo, useMemo } from "react";
 
 // ... imports
 import { CopilotSidebar, CopilotChat } from "@copilotkit/react-ui";
-import { Sun, Moon, Monitor, CheckIcon, ClockIcon } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Monitor,
+  Check,
+  Clock,
+  Loader2,
+  AlertTriangle,
+  XCircle,
+} from "lucide-react";
 import {
   useCoAgent,
   useCoAgentStateRender,
@@ -944,13 +953,494 @@ type AmisInstance = {
   updateProps: (props: Record<string, unknown>) => void;
 };
 
+/**
+ * 任务项组件，支持折叠详情
+ */
+function TaskStepItem({
+  step,
+  index,
+  isCompleted,
+  isCurrentPending,
+  theme,
+  isLast,
+}: {
+  step: Task;
+  index: number;
+  isCompleted: boolean;
+  isCurrentPending: boolean;
+  theme: string;
+  isLast: boolean;
+}) {
+  const [isExpanded, setIsExpanded] = useState(isCurrentPending);
+
+  useEffect(() => {
+    if (isCurrentPending) {
+      setIsExpanded(true);
+    }
+  }, [isCurrentPending]);
+
+  return (
+    <div
+      className={`relative flex flex-col p-3 rounded-lg transition-all duration-500 ${
+        isCompleted
+          ? theme === "dark"
+            ? "bg-gradient-to-r from-green-900/30 to-emerald-900/20 border border-green-500/30"
+            : "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/60"
+          : isCurrentPending
+            ? theme === "dark"
+              ? "bg-gradient-to-r from-blue-900/40 to-purple-900/30 border border-blue-500/50 shadow-lg shadow-blue-500/20"
+              : "bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200/60 shadow-md shadow-blue-200/50"
+            : theme === "dark"
+              ? "bg-slate-800/50 border border-slate-600/30"
+              : "bg-gray-50/50 border border-gray-200/60"
+      }`}
+    >
+      <div className="flex items-center">
+        {/* Status Icon */}
+        <div
+          className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+            isCompleted
+              ? theme === "dark"
+                ? "bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30"
+                : "bg-gradient-to-br from-green-500 to-emerald-600 shadow-md shadow-green-200"
+              : isCurrentPending
+                ? theme === "dark"
+                  ? "bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30"
+                  : "bg-gradient-to-br from-blue-500 to-purple-600 shadow-md shadow-blue-200"
+                : theme === "dark"
+                  ? "bg-slate-700 border border-slate-600"
+                  : "bg-gray-300 border border-gray-400"
+          }`}
+        >
+          {isCompleted ? (
+            <Check className="w-4 h-4 text-white" />
+          ) : isCurrentPending ? (
+            <Loader2 className="w-4 h-4 text-white animate-spin" />
+          ) : (
+            <Clock className="w-4 h-4 text-gray-500" />
+          )}
+        </div>
+
+        {/* Step Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <div
+              className={`font-bold transition-all duration-300 ${
+                isCompleted
+                  ? theme === "dark"
+                    ? "text-green-300 text-sm"
+                    : "text-green-700 text-sm"
+                  : isCurrentPending
+                    ? theme === "dark"
+                      ? "text-blue-300 text-base"
+                      : "text-blue-700 text-base"
+                    : theme === "dark"
+                      ? "text-slate-400 text-sm"
+                      : "text-gray-500 text-sm"
+              }`}
+            >
+              {step.title ||
+                step.description.split("\n")[0].substring(0, 40) ||
+                `任务 ${index + 1}`}
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }}
+              className={`p-1 rounded-md hover:bg-black/5 transition-colors ${
+                theme === "dark" ? "text-slate-400" : "text-gray-400"
+              }`}
+            >
+              <svg
+                className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="m19 9-7 7-7-7"
+                />
+              </svg>
+            </button>
+          </div>
+          {isCurrentPending && !isExpanded && (
+            <div
+              className={`text-xs mt-0.5 animate-pulse ${
+                theme === "dark" ? "text-blue-400" : "text-blue-600"
+              }`}
+            >
+              正在执行中...
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Expanded Description */}
+      {isExpanded && (
+        <div
+          className={`mt-2 ml-11 text-xs leading-relaxed transition-all duration-300 ${
+            theme === "dark" ? "text-slate-400" : "text-gray-600"
+          }`}
+        >
+          <div className="p-2 rounded bg-black/5 border border-black/5 whitespace-pre-wrap">
+            {step.description}
+          </div>
+        </div>
+      )}
+
+      {/* Animated Background for Current Step */}
+      {isCurrentPending && (
+        <div
+          className={`absolute inset-0 rounded-lg bg-gradient-to-r animate-pulse -z-10 ${
+            theme === "dark"
+              ? "from-blue-500/10 to-purple-500/10"
+              : "from-blue-100/50 to-purple-100/50"
+          }`}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// 生成式 UI 组件
+// ============================================================
+
+/**
+ * 状态徽章组件
+ */
+function StatusBadge({ status }: { status: string }) {
+  const statusConfig: Record<
+    string,
+    { color: string; icon: string; text: string }
+  > = {
+    loading: {
+      color: "bg-yellow-100 text-yellow-800",
+      icon: "⏳",
+      text: "处理中",
+    },
+    completed: {
+      color: "bg-green-100 text-green-800",
+      icon: "✅",
+      text: "完成",
+    },
+    error: { color: "bg-red-100 text-red-800", icon: "❌", text: "失败" },
+    executing: {
+      color: "bg-blue-100 text-blue-800",
+      icon: "⚙️",
+      text: "执行中",
+    },
+    pending: { color: "bg-gray-100 text-gray-800", icon: "⏸️", text: "等待中" },
+  };
+
+  const config = statusConfig[status] || statusConfig.loading;
+
+  return (
+    <span
+      className={`px-2 py-1 rounded-full text-xs font-medium ${config.color} flex items-center gap-1`}
+    >
+      <span>{config.icon}</span>
+      {config.text}
+    </span>
+  );
+}
+
+/**
+ * 文档检索卡片组件
+ */
+function DocRetrievalCard({
+  query,
+  taskType,
+  status = "inProgress",
+  result,
+}: {
+  query?: string;
+  taskType?: string;
+  status?: "complete" | "executing" | "inProgress";
+  result?: any;
+}) {
+  return (
+    <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mb-3 shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">📚</span>
+          <h4 className="font-bold text-gray-800">文档检索</h4>
+        </div>
+        <StatusBadge status={status} />
+      </div>
+      <div className="text-sm space-y-1">
+        <p>
+          <span className="text-gray-600">查询关键词：</span>
+          {query}
+        </p>
+        <p>
+          <span className="text-gray-600">任务类型：</span>
+          {taskType}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 优化后的 JSON 查看组件
+ */
+function JsonViewer({
+  data,
+  title = "查看结果",
+  className = "mt-1",
+}: {
+  data: any;
+  title?: string;
+  className?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const jsonString = useMemo(
+    () => (isOpen ? JSON.stringify(data, null, 2) : ""),
+    [data, isOpen],
+  );
+
+  return (
+    <div className={className}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-xs text-green-600 cursor-pointer hover:underline flex items-center gap-1 focus:outline-hidden"
+      >
+        <span>{isOpen ? "▼" : "▶"}</span> {title}
+      </button>
+      {isOpen && (
+        <pre className="mt-1 p-2 bg-gray-900 text-green-400 rounded-md text-xs overflow-auto max-h-48 shadow-inner">
+          {jsonString}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 任务进度卡片组件
+ */
+const TaskProgressCard = memo(function TaskProgressCard({
+  tasks,
+  currentTaskIndex,
+}: {
+  tasks: Task[];
+  currentTaskIndex: number;
+}) {
+  if (!tasks || tasks.length === 0) return null;
+
+  const progressPercentage = (currentTaskIndex / tasks.length) * 100;
+  const theme: string = "light";
+
+  return (
+    <div className="flex">
+      <div
+        className={`relative rounded-xl w-full p-6 shadow-lg backdrop-blur-sm overflow-hidden ${
+          theme === "dark"
+            ? "bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 text-white border border-slate-700/50"
+            : "bg-linear-to-br from-white via-gray-50 to-white text-gray-800 border border-gray-200/80"
+        }`}
+      >
+        <div className="mb-5 relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              任务进度
+            </h3>
+            <div
+              className={`text-sm ${theme === "dark" ? "text-slate-400" : "text-gray-500"}`}
+            >
+              {currentTaskIndex}/{tasks.length} 完成
+            </div>
+          </div>
+          <div
+            className={`relative h-2 rounded-full overflow-hidden ${theme === "dark" ? "bg-slate-700" : "bg-gray-200"}`}
+          >
+            <div
+              className="absolute top-0 left-0 h-full bg-linear-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-1000 ease-out"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+        </div>
+        <div className="space-y-3 relative z-10">
+          {tasks.map((task, index) => (
+            <TaskStepItem
+              key={task.id || index}
+              step={task}
+              index={index}
+              isCompleted={index < currentTaskIndex}
+              isCurrentPending={index === currentTaskIndex}
+              theme={theme}
+              isLast={index === tasks.length - 1}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+/**
+ * 最终结果卡片组件
+ */
+const FinalResultCard = memo(function FinalResultCard({
+  schema,
+  onApply,
+}: {
+  schema: object;
+  onApply?: (schema: any) => void;
+}) {
+  return (
+    <div className="bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-5 mb-3 shadow-lg">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">🎉</span>
+          <div>
+            <h4 className="font-bold text-lg text-gray-800">配置生成完成</h4>
+            <p className="text-sm text-gray-600">amis JSON 已准备就绪</p>
+          </div>
+        </div>
+        <button
+          className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition"
+          onClick={() => onApply?.(schema)}
+        >
+          应用配置
+        </button>
+      </div>
+      <JsonViewer data={schema} title="查看生成的 AMIS 配置" />
+    </div>
+  );
+});
+
+/**
+ * 执行日志时间线组件
+ */
+function Timeline({ events }: { events: ExecutionEvent[] }) {
+  return (
+    <div className="space-y-2 max-h-48 overflow-auto p-2">
+      {events.map((event, index) => (
+        <div
+          key={index}
+          className="flex items-start gap-3 border-l-2 border-gray-200 pl-3"
+        >
+          <span className="text-xs text-gray-400">
+            {new Date(event.timestamp).toLocaleTimeString()}
+          </span>
+          <span
+            className={`text-xs font-bold ${event.type === "error" ? "text-red-500" : "text-blue-500"}`}
+          >
+            {event.type}
+          </span>
+          <p className="text-sm text-gray-600 flex-1">{event.message}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// 导出组件供外部使用
+export {
+  DocRetrievalCard,
+  TaskProgressCard,
+  FinalResultCard,
+  StatusBadge,
+  Timeline,
+};
+
 export default function AmisAgentChat() {
   const { theme } = { theme: "light" }; // Simple theme mock or use a real hook if available
   useCoAgentStateRender<AmisAgentState>({
     name: "AmisEditorPageAgent",
     render: ({ state }) => {
+      // 1. 处理无任务时的状态（错误 vs 正在分析）
       if (!state.tasks || state.tasks.length === 0) {
-        return null;
+        if (state.error) {
+          return (
+            <div className="flex">
+              <div
+                className={`relative rounded-xl w-[700px] p-8 shadow-lg backdrop-blur-sm border ${
+                  theme === "dark"
+                    ? "bg-red-950/40 border-red-900/50 text-red-100 shadow-2xl"
+                    : "bg-red-50 border-red-200 text-red-900"
+                }`}
+              >
+                <div className="flex flex-col items-center justify-center space-y-6">
+                  <div
+                    className={`p-4 rounded-full ${
+                      theme === "dark" ? "bg-red-900/30" : "bg-red-100"
+                    }`}
+                  >
+                    <XCircle className="w-12 h-12 text-red-500" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-xl font-bold text-red-600 dark:text-red-400">
+                      无法生成任务计划
+                    </h3>
+                    <p
+                      className={`text-sm ${
+                        theme === "dark"
+                          ? "text-red-300/70"
+                          : "text-red-600/70"
+                      } max-w-md mx-auto`}
+                    >
+                      {state.error}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex">
+            <div
+              className={`relative rounded-xl w-[700px] p-8 shadow-lg backdrop-blur-sm border ${
+                theme === "dark"
+                  ? "bg-slate-900 border-slate-700 text-white shadow-2xl"
+                  : "bg-white border-gray-200 text-gray-800"
+              }`}
+            >
+              <div className="flex flex-col items-center justify-center space-y-6">
+                <div className="relative">
+                  <div className="w-20 h-20 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin-reverse" />
+                  </div>
+                  <div className="absolute -top-2 -right-2">
+                    <span className="relative flex h-4 w-4">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-blue-500"></span>
+                    </span>
+                  </div>
+                </div>
+                <div className="text-center space-y-2">
+                  <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                    正在深度分析需求...
+                  </h3>
+                  <p
+                    className={`text-sm ${theme === "dark" ? "text-slate-400" : "text-gray-500"} max-w-md`}
+                  >
+                    AI 正在理解您的意图，检索组件文档，并为您规划最佳的 AMIS
+                    页面架构。请稍候片刻。
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="w-2 h-2 rounded-full bg-blue-500/40 animate-bounce"
+                      style={{ animationDelay: `${i * 0.2}s` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       }
       console.log(state.tasks);
       const completedCount = state.tasks.filter(
@@ -998,111 +1488,24 @@ export default function AmisAgentChat() {
             </div>
 
             {/* tasks */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {state.tasks.map((step, index) => {
                 const isCompleted = step.status === "completed";
                 const isCurrentPending =
                   step.status === "pending" &&
                   index ===
                     state.tasks.findIndex((s) => s.status === "pending");
-                const isFuturePending =
-                  step.status === "pending" && !isCurrentPending;
 
                 return (
-                  <div
+                  <TaskStepItem
                     key={index}
-                    className={`relative flex items-center p-2.5 rounded-lg transition-all duration-500 ${
-                      isCompleted
-                        ? theme === "dark"
-                          ? "bg-gradient-to-r from-green-900/30 to-emerald-900/20 border border-green-500/30"
-                          : "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/60"
-                        : isCurrentPending
-                          ? theme === "dark"
-                            ? "bg-gradient-to-r from-blue-900/40 to-purple-900/30 border border-blue-500/50 shadow-lg shadow-blue-500/20"
-                            : "bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200/60 shadow-md shadow-blue-200/50"
-                          : theme === "dark"
-                            ? "bg-slate-800/50 border border-slate-600/30"
-                            : "bg-gray-50/50 border border-gray-200/60"
-                    }`}
-                  >
-                    {/* Connector Line */}
-                    {index < state.tasks.length - 1 && (
-                      <div
-                        className={`absolute left-5 top-full w-0.5 h-2 bg-gradient-to-b ${
-                          theme === "dark"
-                            ? "from-slate-500 to-slate-600"
-                            : "from-gray-300 to-gray-400"
-                        }`}
-                      />
-                    )}
-
-                    {/* Status Icon */}
-                    <div
-                      className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
-                        isCompleted
-                          ? theme === "dark"
-                            ? "bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30"
-                            : "bg-gradient-to-br from-green-500 to-emerald-600 shadow-md shadow-green-200"
-                          : isCurrentPending
-                            ? theme === "dark"
-                              ? "bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30"
-                              : "bg-gradient-to-br from-blue-500 to-purple-600 shadow-md shadow-blue-200"
-                            : theme === "dark"
-                              ? "bg-slate-700 border border-slate-600"
-                              : "bg-gray-300 border border-gray-400"
-                      }`}
-                    >
-                      {isCompleted ? (
-                        <CheckIcon />
-                      ) : isCurrentPending ? (
-                        <ClockIcon className="animate-spin" />
-                      ) : (
-                        <ClockIcon />
-                      )}
-                    </div>
-
-                    {/* Step Content */}
-                    <div className="flex-1 min-w-0">
-                      <div
-                        data-testid="task-step-text"
-                        className={`font-semibold transition-all duration-300 text-sm ${
-                          isCompleted
-                            ? theme === "dark"
-                              ? "text-green-300"
-                              : "text-green-700"
-                            : isCurrentPending
-                              ? theme === "dark"
-                                ? "text-blue-300 text-base"
-                                : "text-blue-700 text-base"
-                              : theme === "dark"
-                                ? "text-slate-400"
-                                : "text-gray-500"
-                        }`}
-                      >
-                        {step.description}
-                      </div>
-                      {isCurrentPending && (
-                        <div
-                          className={`text-sm mt-1 animate-pulse ${
-                            theme === "dark" ? "text-blue-400" : "text-blue-600"
-                          }`}
-                        >
-                          Processing...
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Animated Background for Current Step */}
-                    {isCurrentPending && (
-                      <div
-                        className={`absolute inset-0 rounded-lg bg-gradient-to-r animate-pulse ${
-                          theme === "dark"
-                            ? "from-blue-500/10 to-purple-500/10"
-                            : "from-blue-100/50 to-purple-100/50"
-                        }`}
-                      />
-                    )}
-                  </div>
+                    step={step}
+                    index={index}
+                    isCompleted={isCompleted}
+                    isCurrentPending={isCurrentPending}
+                    theme={theme}
+                    isLast={index === state.tasks.length - 1}
+                  />
                 );
               })}
             </div>
@@ -1471,7 +1874,7 @@ function AmisEditorPage() {
 
       updateSchema(state.schema as any, isAllCompleted);
     }
-  }, [state?.schemaVersion, updateSchema]); // 使用可选链，应对 state 可能还未完全就绪的情况
+  }, [state?.schemaVersion, state?.tasks, updateSchema]); // 监听 tasks 变化，确保任务完成时能触发立即同步
 
   // 组件卸载时清理定时器
   useEffect(() => {
@@ -1524,532 +1927,3 @@ function AmisEditorPage() {
 /**
  * 状态徽章组件
  */
-function StatusBadge({ status }: { status: string }) {
-  const statusConfig: Record<
-    string,
-    { color: string; icon: string; text: string }
-  > = {
-    loading: {
-      color: "bg-yellow-100 text-yellow-800",
-      icon: "⏳",
-      text: "处理中",
-    },
-    completed: {
-      color: "bg-green-100 text-green-800",
-      icon: "✅",
-      text: "完成",
-    },
-    error: { color: "bg-red-100 text-red-800", icon: "❌", text: "失败" },
-    executing: {
-      color: "bg-blue-100 text-blue-800",
-      icon: "⚙️",
-      text: "执行中",
-    },
-    pending: { color: "bg-gray-100 text-gray-800", icon: "⏸️", text: "等待中" },
-  };
-
-  const config = statusConfig[status] || statusConfig.loading;
-
-  return (
-    <span
-      className={`px-2 py-1 rounded-full text-xs font-medium ${config.color} flex items-center gap-1`}
-    >
-      <span>{config.icon}</span>
-      {config.text}
-    </span>
-  );
-}
-
-/**
- * 文档检索卡片组件
- * 用于 retrieveDocumentation 工具调用时渲染
- */
-function DocRetrievalCard({
-  query,
-  taskType,
-  status = "inProgress",
-  result,
-}: {
-  query?: string;
-  taskType?: string;
-  status?: "complete" | "executing" | "inProgress";
-  result?: any;
-}) {
-  return (
-    <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mb-3 shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">📚</span>
-          <h4 className="font-bold text-gray-800">文档检索</h4>
-        </div>
-        <StatusBadge status={status} />
-      </div>
-
-      <div className="text-sm space-y-1">
-        <p>
-          <span className="text-gray-600">查询关键词：</span>
-          <code className="bg-blue-100 px-2 py-0.5 rounded text-xs">
-            {query}
-          </code>
-        </p>
-        <p>
-          <span className="text-gray-600">任务类型：</span>
-          <code className="bg-purple-100 px-2 py-0.5 rounded text-xs">
-            {taskType}
-          </code>
-        </p>
-
-        {status === "inProgress" && (
-          <div className="flex items-center gap-2 mt-3 text-blue-600">
-            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
-            <span>正在检索相关文档...</span>
-          </div>
-        )}
-
-        {status === "complete" && result?.success && (
-          <div className="mt-3 space-y-2">
-            <p className="text-green-600 font-medium">
-              ✅ 找到 {result.count} 个相关文档
-            </p>
-            <div className="bg-white rounded p-2 max-h-40 overflow-auto">
-              {result.documents?.map((doc: any, i: number) => (
-                <div
-                  key={i}
-                  className="text-xs border-b last:border-0 pb-1 mb-1 last:mb-0"
-                >
-                  <p className="text-blue-700 font-medium">📄 {doc.path}</p>
-                  <p className="text-gray-500 mt-0.5">
-                    {doc.codeExamples?.length || 0} 个代码示例
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/**
- * 任务进度卡片组件
- * 用于显示任务规划和执行进度
- */
-
-/**
- * 优化后的 JSON 查看组件
- * 只在展开时或数据变化时进行序列化，避免昂贵的渲染开销
- */
-function JsonViewer({
-  data,
-  title = "查看结果",
-  className = "mt-1",
-}: {
-  data: any;
-  title?: string;
-  className?: string;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  // 只有在打开时才计算 JSON 字符串
-  const jsonString = useMemo(() => {
-    if (!isOpen) return "";
-    return JSON.stringify(data, null, 2);
-  }, [data, isOpen]);
-
-  return (
-    <div className={className}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="text-xs text-green-600 cursor-pointer hover:underline flex items-center gap-1 focus:outline-hidden"
-      >
-        <span
-          className={`transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
-        >
-          ▶
-        </span>
-        {title}
-      </button>
-      {isOpen && (
-        <pre className="mt-1 p-2 bg-gray-900 text-green-400 rounded-md text-xs overflow-auto max-h-48 shadow-inner">
-          {jsonString}
-        </pre>
-      )}
-    </div>
-  );
-}
-
-/**
- * 任务进度卡片组件
- * 用于显示任务规划和执行进度
- * 使用 React.memo 避免不必要的重绘
- */
-import { Check, Clock, Loader2 } from "lucide-react";
-import { log } from "console";
-
-const TaskProgressCard = memo(function TaskProgressCard({
-  tasks,
-  currentTaskIndex,
-}: {
-  tasks: Task[];
-  currentTaskIndex: number;
-}) {
-  if (!tasks || tasks.length === 0) return null;
-
-  const completedCount = currentTaskIndex;
-  const progressPercentage = (completedCount / tasks.length) * 100;
-  // 简化的 theme 处理，默认 light
-  const theme: string = "light";
-
-  return (
-    <div className="flex">
-      <div
-        data-testid="task-progress"
-        className={`relative rounded-xl w-full p-6 shadow-lg backdrop-blur-sm overflow-hidden ${
-          theme === "dark"
-            ? "bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 text-white border border-slate-700/50 shadow-2xl"
-            : "bg-linear-to-br from-white via-gray-50 to-white text-gray-800 border border-gray-200/80"
-        }`}
-      >
-        {/* Header */}
-        <div className="mb-5 relative z-10">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Task Progress
-            </h3>
-            <div
-              className={`text-sm ${theme === "dark" ? "text-slate-400" : "text-gray-500"}`}
-            >
-              {completedCount}/{tasks.length} Complete
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div
-            className={`relative h-2 rounded-full overflow-hidden ${theme === "dark" ? "bg-slate-700" : "bg-gray-200"}`}
-          >
-            <div
-              className="absolute top-0 left-0 h-full bg-linear-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${progressPercentage}%` }}
-            />
-            <div
-              className={`absolute top-0 left-0 h-full w-full bg-linear-to-r from-transparent to-transparent animate-pulse ${
-                theme === "dark" ? "via-white/20" : "via-white/40"
-              }`}
-            />
-          </div>
-        </div>
-
-        {/* Steps */}
-        <div className="space-y-2 relative z-10">
-          {tasks.map((task, index) => {
-            const isCompleted = index < currentTaskIndex;
-            const isCurrentPending = index === currentTaskIndex;
-
-            return (
-              <div
-                key={task.id || index}
-                className={`relative flex items-center p-2.5 rounded-lg transition-all duration-500 ${
-                  isCompleted
-                    ? theme === "dark"
-                      ? "bg-linear-to-r from-green-900/30 to-emerald-900/20 border border-green-500/30"
-                      : "bg-linear-to-r from-green-50 to-emerald-50 border border-green-200/60"
-                    : isCurrentPending
-                      ? theme === "dark"
-                        ? "bg-linear-to-r from-blue-900/40 to-purple-900/30 border border-blue-500/50 shadow-lg shadow-blue-500/20"
-                        : "bg-linear-to-r from-blue-50 to-purple-50 border border-blue-200/60 shadow-md shadow-blue-200/50"
-                      : theme === "dark"
-                        ? "bg-slate-800/50 border border-slate-600/30"
-                        : "bg-gray-50/50 border border-gray-200/60"
-                }`}
-              >
-                {/* Connector Line */}
-                {index < tasks.length - 1 && (
-                  <div
-                    className={`absolute left-5 top-full w-0.5 h-2 bg-linear-to-b ${
-                      theme === "dark"
-                        ? "from-slate-500 to-slate-600"
-                        : "from-gray-300 to-gray-400"
-                    }`}
-                  />
-                )}
-
-                {/* Status Icon */}
-                <div
-                  className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
-                    isCompleted
-                      ? theme === "dark"
-                        ? "bg-linear-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30"
-                        : "bg-linear-to-br from-green-500 to-emerald-600 shadow-md shadow-green-200"
-                      : isCurrentPending
-                        ? theme === "dark"
-                          ? "bg-linear-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30"
-                          : "bg-linear-to-br from-blue-500 to-purple-600 shadow-md shadow-blue-200"
-                        : theme === "dark"
-                          ? "bg-slate-700 border border-slate-600"
-                          : "bg-gray-300 border border-gray-400"
-                  }`}
-                >
-                  {isCompleted ? (
-                    <Check className="w-4 h-4 text-white" />
-                  ) : isCurrentPending ? (
-                    <Loader2 className="w-4 h-4 text-white animate-spin" />
-                  ) : (
-                    <Clock className="w-4 h-4 text-gray-500" />
-                  )}
-                </div>
-
-                {/* Step Content */}
-                <div className="flex-1 min-w-0">
-                  <div
-                    data-testid="task-step-text"
-                    className={`font-semibold transition-all duration-300 text-sm ${
-                      isCompleted
-                        ? theme === "dark"
-                          ? "text-green-300"
-                          : "text-green-700"
-                        : isCurrentPending
-                          ? theme === "dark"
-                            ? "text-blue-300 text-base"
-                            : "text-blue-700 text-base"
-                          : theme === "dark"
-                            ? "text-slate-400"
-                            : "text-gray-500"
-                    }`}
-                  >
-                    {task.description}
-                  </div>
-                  {isCurrentPending && (
-                    <div
-                      className={`text-sm mt-1 animate-pulse ${
-                        theme === "dark" ? "text-blue-400" : "text-blue-600"
-                      }`}
-                    >
-                      Processing...
-                    </div>
-                  )}
-                  {isCompleted && task.result && (
-                    <JsonViewer data={task.result} title="查看结果" />
-                  )}
-                </div>
-
-                {/* Animated Background for Current Step */}
-                {isCurrentPending && (
-                  <div
-                    className={`absolute inset-0 rounded-lg bg-linear-to-r animate-pulse ${
-                      theme === "dark"
-                        ? "from-blue-500/10 to-purple-500/10"
-                        : "from-blue-100/50 to-purple-100/50"
-                    }`}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Decorative Elements */}
-        <div
-          className={`absolute top-3 right-3 w-16 h-16 rounded-full blur-xl ${
-            theme === "dark"
-              ? "bg-linear-to-br from-blue-500/10 to-purple-500/10"
-              : "bg-linear-to-br from-blue-200/30 to-purple-200/30"
-          }`}
-        />
-        <div
-          className={`absolute bottom-3 left-3 w-12 h-12 rounded-full blur-xl ${
-            theme === "dark"
-              ? "bg-linear-to-br from-green-500/10 to-emerald-500/10"
-              : "bg-linear-to-br from-green-200/30 to-emerald-200/30"
-          }`}
-        />
-      </div>
-    </div>
-  );
-});
-
-/**
-
- * 最终结果卡片组件
-
- * 用于显示生成的 amis JSON 配置
-
- * 使用 React.memo 避免不必要的重绘
-
- */
-
-const FinalResultCard = memo(function FinalResultCard({
-  schema,
-  executionLog,
-  onApply,
-}: {
-  schema: object;
-  executionLog?: ExecutionEvent[];
-  onApply?: (schema: any) => void;
-}) {
-  const [isJsonOpen, setIsJsonOpen] = useState(false);
-
-  const handleCopyJson = () => {
-    navigator.clipboard.writeText(JSON.stringify(schema, null, 2));
-  };
-
-  const handleApplySchema = () => {
-    if (onApply) {
-      onApply(schema);
-    }
-  };
-
-  const jsonString = useMemo(() => {
-    if (!isJsonOpen) return "";
-
-    return JSON.stringify(schema, null, 2);
-  }, [schema, isJsonOpen]);
-
-  return (
-    <div className="bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-5 mb-3 shadow-lg">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">🎉</span>
-
-          <div>
-            <h4 className="font-bold text-lg text-gray-800">配置生成完成</h4>
-
-            <p className="text-sm text-gray-600">amis JSON 已准备就绪</p>
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition flex items-center gap-2"
-            onClick={handleCopyJson}
-          >
-            <span>📋</span> 复制 JSON
-          </button>
-
-          <button
-            className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition flex items-center gap-2"
-            onClick={handleApplySchema}
-          >
-            <span>✨</span> 应用到编辑器
-          </button>
-        </div>
-      </div>
-
-      {/* JSON 预览 */}
-
-      <div className="mb-3">
-        <button
-          onClick={() => setIsJsonOpen(!isJsonOpen)}
-          className="flex items-center gap-2 font-semibold text-sm text-gray-700 hover:text-blue-600 focus:outline-hidden"
-        >
-          <span
-            className={`transition-transform duration-200 ${isJsonOpen ? "rotate-90" : ""}`}
-          >
-            ▶
-          </span>
-          📄 查看完整配置 {isJsonOpen ? "(点击折叠)" : "(点击展开)"}
-        </button>
-
-        {isJsonOpen && (
-          <div className="mt-2 relative">
-            <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-auto max-h-96">
-              {jsonString}
-            </pre>
-          </div>
-        )}
-      </div>
-
-      {/* 执行日志 */}
-
-      {executionLog && executionLog.length > 0 && (
-        <details>
-          <summary className="cursor-pointer font-semibold text-sm text-gray-700 hover:text-blue-600">
-            📊 执行日志 ({executionLog.length} 条记录)
-          </summary>
-
-          <div className="mt-2 bg-white rounded-lg p-3 max-h-48 overflow-auto">
-            {executionLog.slice(-50).map((event, index) => (
-              <div
-                key={index}
-                className="text-xs border-l-2 border-gray-300 pl-3 mb-2 last:mb-0"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400">
-                    {new Date(event.timestamp).toLocaleTimeString()}
-                  </span>
-
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-xs ${
-                      event.type === "error"
-                        ? "bg-red-100 text-red-700"
-                        : event.type === "task_complete"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-blue-100 text-blue-700"
-                    }`}
-                  >
-                    {event.type}
-                  </span>
-                </div>
-
-                {event.message && (
-                  <p className="text-gray-600 mt-1">{event.message}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
-    </div>
-  );
-});
-
-/**
- * 执行日志时间线组件
- */
-function Timeline({ events }: { events: ExecutionEvent[] }) {
-  return (
-    <div className="space-y-2">
-      {events.map((event, index) => (
-        <div
-          key={index}
-          className="flex items-start gap-3 pb-2 last:pb-0 border-b last:border-0 border-gray-100"
-        >
-          <div className="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-blue-500" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">
-                {new Date(event.timestamp).toLocaleTimeString()}
-              </span>
-              <span
-                className={`px-1.5 py-0.5 rounded text-xs ${
-                  event.type === "error"
-                    ? "bg-red-100 text-red-700"
-                    : event.type === "task_complete"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-blue-100 text-blue-700"
-                }`}
-              >
-                {event.type}
-              </span>
-            </div>
-            {event.message && (
-              <p className="text-sm text-gray-600 mt-0.5">{event.message}</p>
-            )}
-            {event.taskId && (
-              <p className="text-xs text-gray-400">任务: {event.taskId}</p>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// 导出组件供外部使用
-export {
-  DocRetrievalCard,
-  TaskProgressCard,
-  FinalResultCard,
-  StatusBadge,
-  Timeline,
-};

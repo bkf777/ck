@@ -51,7 +51,7 @@ ${
   const response = await model.invoke([
     new SystemMessage({ content: "你是 JSON 修复专家" }),
     new HumanMessage({ content: prompt }),
-  ]);
+  ], { callbacks: [] }); // 🚫 禁止回调
 
   const content = getMessageContentText(response.content);
 

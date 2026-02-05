@@ -97,7 +97,7 @@ ${rawInput}
   const response = await model.invoke([
     new SystemMessage({ content: "你是一个精准的数据分析与需求提取专家。" }),
     new HumanMessage({ content: prompt }),
-  ]);
+  ], { callbacks: [] }); // 🚫 禁止回调，防止此内部思考过程被流式传输到前端聊天界面
 
   const content = getMessageContentText(response.content);
 
