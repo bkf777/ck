@@ -23,7 +23,7 @@ export async function validator_node(
   console.log(`\n🔍 [Validator] 验证任务 ${task.id} 结果...`);
 
   // 如果没有 rawResult，说明执行可能失败了或者跳过了
-  if (!task.rawResult) {
+  if (!task.result) {
      // 如果已经是 failed，保持原样
      if (task.status === 'failed') return {};
      
@@ -34,7 +34,7 @@ export async function validator_node(
   }
 
   try {
-    const json = parseJsonFromMarkdown(task.rawResult);
+    const json = task.result;
     
     // 1. 基础结构验证
     if (typeof json !== 'object' || json === null) {
@@ -61,6 +61,7 @@ export async function validator_node(
     // 验证成功
     tasks[currentIndex].result = json;
     tasks[currentIndex].status = 'completed';
+    
     console.log(`✅ [Validator] 验证通过`);
 
     const event: ExecutionEvent = {
@@ -68,8 +69,9 @@ export async function validator_node(
         timestamp: new Date().toISOString(),
         taskId: task.id,
         message: `任务 ${task.id} 验证通过`,
-        data: json,
-    };
+    }
+
+    const nextVersion = (state.schemaVersion || 0) + 1;
 
     // --- 构建预览 Schema 并推送 ---
     // 收集之前已完成的任务结果 + 当前结果
@@ -96,14 +98,18 @@ export async function validator_node(
         }))
     };
 
+    // 💡 极限优化：在验证推送时，先解构掉旧的巨大的 schema，以节省内存和序列化开销
+    const { schema: oldSchema, ...stateWithoutSchema } = state;
+
     // 立即推送状态更新给前端
     await dispatchCustomEvent(
         "manually_emit_state",
         {
-            ...state,
+            ...stateWithoutSchema,
             tasks,
             currentTaskIndex: currentIndex + 1, // 预测推进
             schema: partialSchema,
+            schemaVersion: nextVersion,
             executionLog: [...(state.executionLog || []), event],
         },
         config
@@ -114,6 +120,7 @@ export async function validator_node(
     return {
       tasks,
       currentTaskIndex: currentIndex + 1,
+      schemaVersion: nextVersion,
       executionLog: [...(state.executionLog || []), event],
       schema: partialSchema // 更新状态中的 schema
     };

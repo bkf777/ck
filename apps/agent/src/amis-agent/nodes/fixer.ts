@@ -66,8 +66,12 @@ ${
     message: `尝试修复 JSON 错误 (重试次数: ${tasks[currentIndex].retryCount})`,
   };
 
+  // 限制日志长度
+  const prunedLog = (state.executionLog || []).slice(-20);
+
   return {
     tasks,
-    executionLog: [...(state.executionLog || []), event],
+    schemaVersion: state.schemaVersion || 0, // 保持版本号
+    executionLog: [...prunedLog, event],
   };
 }

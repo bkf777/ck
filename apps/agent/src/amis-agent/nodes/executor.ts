@@ -80,6 +80,13 @@ export async function executor_node(
 
   // 更新任务状态
   tasks[currentIndex].status = "in_progress";
+    await dispatchCustomEvent(
+    "manually_emit_state",
+    {
+      tasks,
+    },
+    config,
+  );
 
   // 定义模型
   const model = createChatModel({
@@ -206,20 +213,19 @@ ${JSON.stringify(simplifiedResults, null, 2)}
     };
   }
 
-  // 获取原始响应内容并保存
+  // 获取原始响应内容
   const rawResult = getMessageContentText(response.content);
 
-  tasks[currentIndex].rawResult = rawResult;
-  tasks[currentIndex].status = "in_progress";
-
-  console.log(
-    `📡 [Executor] 任务 ${task.id} 生成原始配置完成，进入预览组装阶段`,
-  );
-
-  // --- 尝试生成部分预览 ---
+  // --- 尝试解析并生成预览 ---
   let partialSchema = state.schema;
+  let currentJson = null;
+
   try {
-    const currentJson = parseJsonFromMarkdown(rawResult);
+    currentJson = parseJsonFromMarkdown(rawResult);
+    
+    // 💡 核心优化：解析成功后立即放入 result 并把原文本清空，不让 rawResult 进入状态流
+    tasks[currentIndex].result = currentJson;
+    
 
     // 收集所有已有的结果 (已完成 + 当前)
     const allResults = [
@@ -229,7 +235,6 @@ ${JSON.stringify(simplifiedResults, null, 2)}
       currentJson,
     ];
 
-    // 简单的组合成一个 Page
     partialSchema = {
       type: "page",
       title: "页面生成中...",
@@ -247,7 +252,9 @@ ${JSON.stringify(simplifiedResults, null, 2)}
       })),
     };
   } catch (e) {
-    console.warn("Partial preview generation failed:", e);
+    console.warn("Partial preview generation failed, keeping rawResult for fixer:", e);
+    // 如果解析失败，才保留 rawResult 给 fixer 处理
+    tasks[currentIndex].rawResult = rawResult;
   }
   // -------------------------
 
@@ -255,26 +262,16 @@ ${JSON.stringify(simplifiedResults, null, 2)}
     type: "generation_progress",
     timestamp: new Date().toISOString(),
     taskId: task.id,
-    message: `任务 ${task.id} 已生成原始配置，准备验证...`,
+    message: `任务 ${task.id} 配置已生成，准备进入验证阶段`,
   };
 
-  // 立即推送状态更新给前端
-  await dispatchCustomEvent(
-    "manually_emit_state",
-    {
-      ...state,
-      tasks,
-      schema: partialSchema,
-      executionLog: [...(state.executionLog || []), event],
-    },
-    config,
-  );
+  const nextVersion = (state.schemaVersion || 0) + 1;
 
   return {
     tasks,
-    schema: partialSchema, // 更新 schema 以便前端预览
+    schema: partialSchema,
+    schemaVersion: nextVersion,
     executionLog: [...(state.executionLog || []), event],
-    // 本轮用过的上下文清空
     contextDocuments: [],
   };
 }

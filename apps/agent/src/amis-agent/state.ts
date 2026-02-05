@@ -66,6 +66,9 @@ export const AgentStateAnnotation = Annotation.Root({
 
   // A/B 测试分组 (A: 对照组-旧流程, B: 实验组-新流程)
   abTestGroup: Annotation<"A" | "B">,
+
+  // Schema 版本号，用于前端精确感知更新
+  schemaVersion: Annotation<number>,
 });
 
 export type AmisAgentState = typeof AgentStateAnnotation.State;

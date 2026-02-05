@@ -59,7 +59,7 @@ function route_start(state: AmisAgentState): string {
     console.log("🔀 [Route] 检测到工具输出，跳转 -> executor");
     return "executor";
   }
-  console.log("🔀 [Route] 初始启动，跳转 -> experiment_allocator");
+  console.log("🔀 [Route] 初始启动，跳转 -> input_processor");
   return "input_processor";
 }
 

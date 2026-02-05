@@ -75,11 +75,15 @@ ${JSON.stringify(processData.dataStructure, null, 2)}`;
         type: "task_complete",
         timestamp: new Date().toISOString(),
         message: "结果综合完成",
-        data: finalJson,
+        // 💡 优化：不再将完整的 JSON 塞入日志，因为它已经在 schema 字段里了
       };
+
+      // 增加版本号，确保前端感知到最终综合结果
+      const nextVersion = (state.schemaVersion || 0) + 1;
 
       return {
         schema: finalJson,
+        schemaVersion: nextVersion,
         executionLog: [...(state.executionLog || []), event],
         messages: [new AIMessage({ content: "已为您生成 Amis 页面配置。" })],
       };

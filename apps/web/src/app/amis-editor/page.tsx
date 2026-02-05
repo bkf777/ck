@@ -947,12 +947,12 @@ type AmisInstance = {
 export default function AmisAgentChat() {
   const { theme } = { theme: "light" }; // Simple theme mock or use a real hook if available
   useCoAgentStateRender<AmisAgentState>({
-    name: "generative_ui",
+    name: "AmisEditorPageAgent",
     render: ({ state }) => {
       if (!state.tasks || state.tasks.length === 0) {
         return null;
       }
-
+      console.log(state.tasks);
       const completedCount = state.tasks.filter(
         (step) => step.status === "completed",
       ).length;
@@ -1405,32 +1405,82 @@ function AmisEditorPage() {
 
   const ref = useRef<AmisInstance | null>(null);
 
-  // 当 schema 更新时重新渲染
-  const updateSchema = useCallback((newSchema: Record<string, unknown>) => {
-    console.log("准备更新 schema:", newSchema);
+  // 记录上一次应用过的 schema，避免重复更新
+  const lastSchemaAppliedRef = useRef<string>("");
+  const updateTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    if (ref.current && typeof ref.current.updateSchema === "function") {
-      try {
-        ref.current.updateSchema(newSchema);
-        console.log("✅ Schema 更新成功");
-      } catch (error) {
-        console.error("❌ Schema 更新失败:", error);
+  // 当 schema 更新时重新渲染
+  const updateSchema = useCallback(
+    (newSchema: Record<string, unknown>, immediate = false) => {
+      if (!newSchema) return;
+
+      const schemaStr = JSON.stringify(newSchema);
+      if (schemaStr === lastSchemaAppliedRef.current) {
+        return;
       }
-    } else {
-      console.warn("⚠️ amis 实例未就绪或 updateSchema 方法不可用");
-    }
-  }, []);
+
+      // 清除现有的定时器
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+      }
+
+      const performUpdate = () => {
+        // 💡 极其重要的防御性检查：确保 amis 实例存在且 updateSchema 可用
+        if (
+          ref &&
+          ref.current &&
+          typeof ref.current.updateSchema === "function"
+        ) {
+          try {
+            ref.current.updateSchema(newSchema);
+            lastSchemaAppliedRef.current = schemaStr;
+            console.log("✅ Schema 更新成功 (防抖应用)");
+          } catch (error) {
+            console.error("❌ AMIS 更新内部渲染错误:", error);
+            // 发生错误时，不更新 lastSchemaAppliedRef，以便重试
+          }
+        }
+      };
+
+      if (immediate) {
+        performUpdate();
+      } else {
+        // 流式更新时，延迟应用，减少闪烁
+        updateTimerRef.current = setTimeout(performUpdate, 400);
+      }
+    },
+    [],
+  );
 
   const { state } = useCoAgent<AmisAgentState>({
     name: "AmisEditorPageAgent",
     initialState: {
       schema: DEFAULT_SCHEMA,
+      schemaVersion: 0,
     },
   });
 
   useEffect(() => {
-    updateSchema(state.schema as any);
-  }, [state.schema]);
+    // 💡 只有在 state 就绪且版本号变化时才尝试更新，增加安全性
+    if (state && state.schema) {
+      // 检查是否所有任务都已完成，如果是，则立即更新
+      const isAllCompleted =
+        state.tasks &&
+        state.tasks.length > 0 &&
+        state.tasks.every((t) => t.status === "completed");
+
+      updateSchema(state.schema as any, isAllCompleted);
+    }
+  }, [state?.schemaVersion, updateSchema]); // 使用可选链，应对 state 可能还未完全就绪的情况
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+      }
+    };
+  }, []);
 
   // 初始化 amis
   useEffect(() => {
@@ -1635,6 +1685,7 @@ function JsonViewer({
  * 使用 React.memo 避免不必要的重绘
  */
 import { Check, Clock, Loader2 } from "lucide-react";
+import { log } from "console";
 
 const TaskProgressCard = memo(function TaskProgressCard({
   tasks,

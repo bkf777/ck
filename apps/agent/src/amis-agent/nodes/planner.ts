@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
 import {
   AIMessage,
@@ -8,173 +9,82 @@ import { dispatchCustomEvent } from "@langchain/core/callbacks/dispatch";
 import { createChatModel } from "../../utils/model-factory.js";
 import { AmisAgentState } from "../state.js";
 import { Task, ExecutionEvent } from "../types.js";
-import { getMessageContentText } from "../utils.js";
 
-// Define the tool for generating tasks
-const PLAN_TASKS_TOOL = {
-  type: "function",
-  function: {
-    name: "generate_amis_tasks",
-    description: "Generate a list of tasks to build the AMIS page implementation based on requirements.",
-    parameters: {
-      type: "object",
-      properties: {
-        tasks: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              id: { type: "string", description: "Unique task ID (e.g., task-1)" },
-              description: { type: "string", description: "Clear description of what to implement" },
-              type: { 
-                type: "string", 
-                description: "Task type (e.g., form-item-input-text, form-item-select, form-assembly, crud-table, etc.)" 
-              },
-              priority: { type: "number", description: "Priority: 1=High, 2=Medium, 3=Low" },
-              dataDependencies: { 
-                type: "array", 
-                items: { type: "string" }, 
-                description: "List specific data fields this task uses (if any)" 
-              },
-              status: { 
-                type: "string", 
-                enum: ["pending"], 
-                description: "Initial status, must be 'pending'" 
-              }
-            },
-            required: ["id", "description", "type", "priority", "status"]
-          },
-          description: "List of structured tasks"
-        }
-      },
-      required: ["tasks"]
-    }
-  }
-};
+/**
+ * --- 1. 将业务规则与组件约束完全封装进 Zod Schema ---
+ * 模型在调用工具时会自动读取这些 describe 信息，从而实现精准控制。
+ */
+const PLAN_TASKS_SCHEMA = z.object({
+  tasks: z.array(z.object({
+    id: z.string().describe("任务唯一标识，例如 task-1, task-2"),
+    title: z.string().describe("任务标题，例如 '用户管理表格'"),
+    description: z.string().describe(
+      "极其详细的任务实施描述。要求：\n" +
+      "1. **粗粒度聚合**：描述一个完整的组件块（如'用户管理表格'），确保 Executor 能一次性生成完整结构。\n" +
+      "2. **交互性**：明确说明交互逻辑（如'提交后刷新下方列表'、'点击按钮打开包含表单的弹窗'）。\n" +
+      "3. **数据绑定**：明确字段名及数据路径（如 '使用 ${rows} 作为源'）。\n" +
+      "4. **布局意图**：若有多个任务，说明其相对位置（如'放置在页面顶部'）。"
+    ),
+    type: z.string().describe(
+      "核心组件 Type。必须严格选择以下索引：\n" +
+      "- 容器: page, service, form, wizard, dialog, drawer, wrapper, flex, grid, container\n" +
+      "- 展示: table, cards, list, chart, tpl, json, image\n" +
+      "- 功能: action, button, nav, tasks, divider\n" +
+      "注意：严禁使用细粒度的 form-item-xxx 类型。"
+    ),
+    priority: z.number().describe("优先级：1=高, 2=中, 3=低"),
+    dataDependencies: z.array(z.string()).optional().describe("该任务需要引用的数据结构中具体的字段名"),
+    status: z.literal("pending").describe("初始状态，固定为 'pending'")
+  })).min(1).max(3).describe("AMIS 任务规划列表。原则：少即是多（通常1-2个任务足以覆盖），除非用户明确要求API，否则默认使用静态 Mock 数据。")
+});
 
 /**
  * 1. 任务规划节点 (Planner Node)
- * 职责：分析用户需求，生成结构化的子任务列表
+ * 职责：分析用户需求，生成基于工具调用的结构化任务列表
  */
 export async function planner_node(
   state: AmisAgentState,
   config: RunnableConfig,
 ) {
+  // 获取输入：用户原始需求或历史对话中的最后一项
   const userRequirement =
     state.userRequirement ||
     (state.messages[state.messages.length - 1] as HumanMessage).content;
 
   const processData = state.processData;
 
-  // 检查是否有失败的任务导致的回退
+  // 检查是否在重试模式
   const failedTasks = (state.tasks || []).filter((t) => t.status === "failed");
   const isRetry = failedTasks.length > 0;
 
-  console.log(
-    `\n📋 [Planner] 分析用户需求: ${
-      isRetry ? `(重试模式: ${failedTasks.length} 个任务失败)` : ""
-    }`,
-  );
+  console.log(`\n📋 [Planner] 分析用户需求: ${isRetry ? `(重试模式: ${failedTasks.length} 个任务失败)` : ""}`);
 
-  // 定义模型
   const model = createChatModel({
-    temperature: 0.3,
+    temperature: 0.1, // 降低随机性以确保严格遵循工具描述
   });
 
-  // 构建提示词
-  let promptText = `你是一个 amis 配置任务规划专家。请分析用户需求，将其拆分为 1-3 个核心任务。
-你的目标是生成 "Coarse-grained" (粗粒度) 的任务，确保 Executor 可以一次性生成完整的组件块（如整个表单、整个列表），而不是零散的字段。
+  // --- 2. 极其简化的 Prompt：只负责传递上下文 ---
+  let promptText = `请分析以下用户需求，通过调用 generate_amis_tasks 规划高效的实施任务：
 
-用户需求：${userRequirement}`;
+[用户需求]
+${userRequirement}`;
 
   if (processData) {
-    promptText += `\n\n可用数据结构信息：
-描述: ${processData.dataMeta?.description || "无"}
-结构: ${JSON.stringify(processData.dataStructure, null, 2)}
-`;
+    promptText += `\n\n[相关数据结构定义]
+${JSON.stringify(processData.dataStructure, null, 2)}`;
   }
-
-  // 注入文档索引以辅助类型选择
-  promptText += `\n\n【Amis 组件类型索引】(必需严格遵守)
-请为每个任务指定准确的组件 type（必须是以下列表中的有效值）：
-
-1. 页面/容器类
-   - page (页面根节点)
-   - service (数据服务/Mock数据容器)
-   - form (表单容器)
-   - wizard (向导)
-   - dialog (弹窗)
-   - drawer (抽屉)
-   - wrapper (简单容器)
-
-2. 数据展示类
-   - table (静态表格)
-   - crud (增删改查高级列表)
-   - cards (卡片列表)
-   - list (普通列表)
-   - chart (图表)
-   - tpl (HTML/文本模板)
-   - json (JSON展示)
-   - image (图片)
-   - video (视频)
-   - audio (音频)
-
-3. 布局类
-   - flex (Flex布局)
-   - grid (网格布局)
-   - hbox (水平布局)
-   - container (通用容器)
-   - divider (分割线)
-
-4. 功能类
-   - action (通用动作/按钮)
-   - button (按钮)
-   - button-group (按钮组)
-   - tasks (异步任务)
-   - nav (导航)
-
-⚠️ 注意：
-1. **Type 准确性**：必须使用上述英文 type 字符串，严禁臆造（如不要用 'user-list'，应使用 'crud' 或 'table'）。
-2. **数据源原则**：除非用户明确要求 "从接口获取"、"连接后端" 或 "API"，否则**默认使用静态数据**。不要配置 API 地址，而是将 Mock 数据直接写入配置。
-3. **任务聚合**：尽量聚合任务！例如用户需要一个"包含姓名、年龄的查询表单"，请生成一个 type="form" 的任务，描述中包含所有字段要求，而不是生成两个 type="input-text" 的任务。
-`;
 
   if (isRetry) {
-    promptText += `
-\n🚨 注意：之前的任务执行失败了，请根据错误信息调整规划。
-失败的任务：
-${failedTasks
-  .map((t) => `- 任务: ${t.description}\n  错误: ${t.errorMessage}`)
-  .join("\n")}
-
-策略调整：
-1. 如果是因为任务过于复杂导致失败，尝试适当拆分，但不要拆得太细。
-2. 检查描述是否缺少关键信息（如数据绑定路径）。
-`;
+    promptText += `\n\n🚨 注意：之前的任务执行失败，请根据错误信息调整规划策略：
+${failedTasks.map((t) => `- 计划: ${t.description}\n  错误提示: ${t.errorMessage}`).join("\n")}`;
   }
 
-  promptText += `
-请生成任务列表，每个任务包含：
-- id: 任务唯一标识（如 task-1）
-- description: 详细的任务描述。
-  - 对于表单/列表：列出所有需要的字段、按钮和交互逻辑。
-  - 包含数据绑定要求（如 "使用 \${rows} 作为数据源"）。
-  - 必须包含"做什么"和"怎么做"的上下文。
-- type: 核心组件类型（见上文索引，如 form, crud, page, chart 等）。不要使用 form-item-xxx 这种细粒度类型，除非它是独立的。
-- priority: 优先级
-- dataDependencies: 需要的数据字段
-- status: "pending"
+  // 构建支持结构化输出的模型
+  const modelWithStructuredOutput = model.withStructuredOutput(PLAN_TASKS_SCHEMA, {
+    name: "generate_amis_tasks",
+  });
 
-关键规则：
-1. **少即是多**：通常 1-2 个任务足以描述一个页面区域（例如：一个任务负责"查询表单"，一个任务负责"数据列表"）。
-2. **完整性**：任务描述必须包含 Executor 生成该组件所需的所有信息（字段名、标签、类型、API 绑定等）。
-3. **协作性**：如果有多个任务，确保描述中提及它们的关系（例如 "位于查询表单下方"）。
-4. **组装**：如果涉及复杂布局，最后一个任务可以是 "page-assembly" (组装)。
-5. 必须调用 generate_amis_tasks 工具。`;
-
-  const systemPrompt = "你是一个 amis 页面设计专家，负责将用户需求拆解为具体的实施任务。你必须调用 generate_amis_tasks 工具。";
-
-  // Use "predict_state" metadata to set up streaming for the tool
+  // 设置流式状态预测元数据（用于前端实时显示任务骨架）
   if (!config.metadata) config.metadata = {};
   config.metadata.predict_state = [{
     state_key: "tasks",
@@ -182,73 +92,28 @@ ${failedTasks
     tool_argument: "tasks",
   }];
 
-  // Bind the tools to the model
-  const modelWithTools = model.bindTools(
-    [PLAN_TASKS_TOOL]
-  );
-
   let tasks: Task[] = [];
-  let response;
-
   try {
-    response = await modelWithTools.invoke([
-      new SystemMessage({ content: systemPrompt }),
+    const output = await modelWithStructuredOutput.invoke([
+      new SystemMessage("你是一个 amis 页面规划专家。你必须调用 generate_amis_tasks 工具。请务必结合工具参数描述中的组件索引、粗粒度聚合原则和默认静态数据原则来输出方案。"),
       new HumanMessage({ content: promptText }),
     ]);
 
-    // Extract tool calls
-    if (response.tool_calls && response.tool_calls.length > 0) {
-      const toolCall = response.tool_calls.find(tc => tc.name === "generate_amis_tasks");
-      if (toolCall) {
-        tasks = toolCall.args.tasks.map((t: any) => ({
-          ...t,
-          docPaths: [], // Initialize docPaths as empty
-          status: "pending",
-          retryCount: 0
-        }));
-      }
-    } else {
-       // Fallback: parse raw content if model didn't use tool (shouldn't happen with force bind, but safe to keep)
-       console.warn("[Planner] Model did not call tool, attempting fallback parse...");
-       const content = getMessageContentText(response.content);
-        const jsonCodeBlockMatch = content.match(
-          /```json[\s\S]*?\n([\s\S]*?)\n```/,
-        );
-        if (jsonCodeBlockMatch) {
-          tasks = JSON.parse(jsonCodeBlockMatch[1]);
-        } else {
-             // Try strict parse if just JSON
-            try {
-                 tasks = JSON.parse(content);
-            } catch(e) {
-                // If it's a list inside key 'tasks'
-                try {
-                     const parsed = JSON.parse(content);
-                     if(parsed.tasks && Array.isArray(parsed.tasks)) tasks = parsed.tasks;
-                } catch(ign) {}
-            }
-        }
-        
-        // Normalize
-        tasks = tasks.map((task: any) => ({
-          ...task,
-          status: "pending",
-          result: undefined,
-          retryCount: 0,
-          docPaths: task.docPaths || [],
-        }));
+    if (output && output.tasks) {
+      tasks = output.tasks.map((t) => ({
+        ...t,
+        docPaths: [], 
+        status: "pending" as const,
+        retryCount: 0
+      }));
     }
-
   } catch (e) {
-    console.error(
-      "FATAL: Planner LLM call failed.",
-      e,
-    );
-     tasks = [
+    console.error("FATAL: Planner LLM call failed.", e);
+    tasks = [
       {
         id: "task-error",
         description: "任务规划失败: " + ((e as any).message || "Unknown error"),
-        type: "general",
+        type: "error",
         priority: 1,
         docPaths: [],
         status: "failed",
@@ -256,35 +121,29 @@ ${failedTasks
     ];
   }
 
+  // 如果完全没有生成任务，提供一个兜底
   if (tasks.length === 0) {
-      // Emergency backup
-       tasks = [
-      {
-        id: "task-1",
-        description: "分析需求并生成配置 (Fallback)",
-        type: "general",
-        priority: 1,
-        docPaths: [],
-        status: "pending",
-      },
-    ];
+    tasks = [{
+      id: "task-1",
+      description: "基于需求生成完整的 amis 配置 (Fallback)",
+      type: "page",
+      priority: 1,
+      docPaths: [],
+      status: "pending",
+    }];
   }
 
-
-  // 添加执行日志
+  // 记录执行事件
   const event: ExecutionEvent = {
     type: "task_start",
     timestamp: new Date().toISOString(),
-    message: `任务规划完成，共生成 ${tasks.length} 个子任务`,
-    data: { tasks },
+    message: `任务拆解完成: [${tasks.map(t => t.type).join(', ')}]`,
   };
 
-  // IMPORTANT: Manually emit state update for frontend to sync immediately
-  // This matches the user's "correct code example" pattern
+  // 手动推送当前状态给前端（实现 UI 的即时同步）
   await dispatchCustomEvent(
     "manually_emit_state", 
     {
-      ...state,
       tasks,
       executionLog: [...(state.executionLog || []), event]
     }, 
@@ -297,7 +156,7 @@ ${failedTasks
     taskResults: [],
     executionLog: [...(state.executionLog || []), event],
     userRequirement: userRequirement as string,
-    contextDocuments: [],
     needsReplan: false,
+    schemaVersion: state.schemaVersion || 0,
   };
 }
