@@ -1129,10 +1129,21 @@ function StatusBadge({ status }: { status: string }) {
       text: "完成",
     },
     error: { color: "bg-red-100 text-red-800", icon: "❌", text: "失败" },
+    failed: { color: "bg-red-100 text-red-800", icon: "❌", text: "失败" },
     executing: {
       color: "bg-blue-100 text-blue-800",
       icon: "⚙️",
       text: "执行中",
+    },
+    in_progress: {
+      color: "bg-blue-100 text-blue-800",
+      icon: "⚙️",
+      text: "执行中",
+    },
+    json_error: {
+      color: "bg-orange-100 text-orange-800",
+      icon: "🔧",
+      text: "修复中",
     },
     pending: { color: "bg-gray-100 text-gray-800", icon: "⏸️", text: "等待中" },
   };
@@ -1381,9 +1392,7 @@ export default function AmisAgentChat() {
                     </h3>
                     <p
                       className={`text-sm ${
-                        theme === "dark"
-                          ? "text-red-300/70"
-                          : "text-red-600/70"
+                        theme === "dark" ? "text-red-300/70" : "text-red-600/70"
                       } max-w-md mx-auto`}
                     >
                       {state.error}
@@ -1491,10 +1500,13 @@ export default function AmisAgentChat() {
             <div className="space-y-3">
               {state.tasks.map((step, index) => {
                 const isCompleted = step.status === "completed";
-                const isCurrentPending =
-                  step.status === "pending" &&
-                  index ===
-                    state.tasks.findIndex((s) => s.status === "pending");
+                
+                // Determine if this task is the current active one
+                const isProcessing = ["in_progress", "json_error"].includes(step.status);
+                const anyProcessing = state.tasks.some(s => ["in_progress", "json_error"].includes(s.status));
+                const isNextUp = !anyProcessing && step.status === "pending" && index === state.tasks.findIndex(s => s.status === "pending");
+
+                const isCurrentPending = isProcessing || isNextUp;
 
                 return (
                   <TaskStepItem
@@ -1919,11 +1931,3 @@ function AmisEditorPage() {
     </>
   );
 }
-
-// ============================================================
-// 生成式 UI 组件
-// ============================================================
-
-/**
- * 状态徽章组件
- */

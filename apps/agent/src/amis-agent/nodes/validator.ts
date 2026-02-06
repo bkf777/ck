@@ -24,8 +24,8 @@ export async function validator_node(
 
   // 如果没有 rawResult，说明执行可能失败了或者跳过了
   if (!task.result) {
-     // 如果已经是 failed，保持原样
-     if (task.status === 'failed') return {};
+     // 如果已经是 failed 或 json_error，保持原样
+     if (task.status === 'failed' || task.status === 'json_error') return { tasks };
      
      // 否则标记为 failed
      tasks[currentIndex].status = 'failed';
@@ -132,6 +132,22 @@ export async function validator_node(
     
     tasks[currentIndex].status = 'json_error';
     tasks[currentIndex].errorMessage = err.message;
+
+    // 🔴 错误状态也需要推送，否则前端看不到报错
+    await dispatchCustomEvent(
+      "manually_emit_state",
+      {
+        tasks,
+        currentTaskIndex: currentIndex,
+        executionLog: [...(state.executionLog || []), {
+            type: "error",
+            timestamp: new Date().toISOString(),
+            taskId: task.id,
+            message: `验证失败: ${err.message}`
+        }],
+      },
+      config
+    );
 
     return {
       tasks,

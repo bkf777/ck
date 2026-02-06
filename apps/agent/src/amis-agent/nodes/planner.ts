@@ -107,7 +107,7 @@ ${failedTasks.map((t) => `- 计划: ${t.description}\n  错误提示: ${t.errorM
     if (output && output.tasks) {
       tasks = output.tasks.map((t) => ({
         ...t,
-        docPaths: [], 
+        docPaths: [],
         status: "pending" as const,
         retryCount: 0
       }));

@@ -1,9 +1,10 @@
 import { RunnableConfig } from "@langchain/core/runnables";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { dispatchCustomEvent } from "@langchain/core/callbacks/dispatch";
 import { createChatModel } from "../../utils/model-factory.js";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
-import { getMessageContentText } from "../utils.js";
+import { getMessageContentText, parseJsonFromMarkdown } from "../utils.js";
 
 /**
  * 2.3 JSON 修复节点 (Fixer Node)
@@ -55,6 +56,17 @@ ${
 
   const content = getMessageContentText(response.content);
 
+  // 尝试解析修复后的结果，以便 Validator 可以进行验证
+  try {
+    const fixedJson = parseJsonFromMarkdown(content);
+    tasks[currentIndex].result = fixedJson;
+    // 重置状态，避免 Validator 误判
+    tasks[currentIndex].status = 'in_progress';
+  } catch (e) {
+    console.warn("[Fixer] 解析修复结果失败:", e);
+    // 解析失败，Validator 将会再次捕获并可能最终失败
+  }
+
   // 更新任务的 rawResult，然后再次进入 validator
   tasks[currentIndex].rawResult = content;
   tasks[currentIndex].retryCount = (tasks[currentIndex].retryCount || 0) + 1;
@@ -68,6 +80,16 @@ ${
 
   // 限制日志长度
   const prunedLog = (state.executionLog || []).slice(-20);
+
+  // 🔄 修复过程中也推送状态，让前端感知到重试
+  await dispatchCustomEvent(
+    "manually_emit_state",
+    {
+      tasks,
+      executionLog: [...prunedLog, event],
+    },
+    config
+  );
 
   return {
     tasks,
