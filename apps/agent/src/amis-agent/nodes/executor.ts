@@ -80,7 +80,7 @@ export async function executor_node(
 
   // 更新任务状态
   tasks[currentIndex].status = "in_progress";
-    await dispatchCustomEvent(
+  await dispatchCustomEvent(
     "manually_emit_state",
     {
       tasks,
@@ -100,7 +100,17 @@ export async function executor_node(
   const processData = state.processData;
 
   // 构建提示词
-  let prompt = `你是 amis 配置生成专家。请根据任务描述生成符合规范的 amis JSON 配置。
+  let prompt = `你是 amis 配置生成专家。你的目标是生成**美观、现代、专业**的 UI 组件。
+
+【设计规范 (Design System)】
+1. **风格**: 使用类似 Ant Design 或 Tailwind 的现代风格。避免默认的粗糙样式。
+2. **布局**:
+   - 使用 \`card\` 包裹主要内容区域，添加 \`mode: "horizontal"\` 或适当的 padding。
+   - 使用 \`flex\` 进行水平排列，配合 \`gap-4\`, \`items-center\`。
+3. **颜色与间距**:
+   - 必须使用 CSS 类名美化：\`className: "p-4 bg-white rounded-lg shadow-sm mb-4"\`。
+   - 标题使用 \`text-lg font-bold mb-4\`。
+4. **交互**: 按钮使用 \`level: "primary"\` 或 \`level: "enhance"\`，避免全部默认灰色。
 
 任务描述：${task.description}
 任务类型：${task.type}
@@ -153,13 +163,13 @@ variableName
  格式。
 
 【自检清单】
+- [ ] 是否添加了美化类名 (shadow-sm, rounded, p-4)？
 - [ ] 是否正确使用了点号 (.) 访问对象属性？
 - [ ] 如果是 Table/List，是否包含了 
 'data'
  或 
 'source'
  形式的 Mock 数据？
-- [ ] 是否避免了配置未请求的 API？
 `;
 
   if (simplifiedResults.length > 0) {
@@ -170,17 +180,16 @@ ${JSON.stringify(simplifiedResults, null, 2)}
   }
 
   if (state.contextDocuments && state.contextDocuments.length > 0) {
-    prompt += `\n\n以下是与本任务相关的文档摘录（供参考）：\n${state.contextDocuments
+    prompt += `\n\n【严格遵循参考文档】
+你必须优先参考以下文档中的 Props 定义和 Schema 结构，**严禁猜测**组件属性：
+${state.contextDocuments
       .slice(0, 3)
       .map(
         (d, i) =>
-          `【文档${i + 1}】${d.path}\n摘要：${d.summary || ""}\n示例：\n${(
-            d.codeExamples || []
-          )
-            .slice(0, 1)
-            .join("\n")}`,
+          `--- 文档片段 ${i + 1} (${d.path}) ---\n${d.content ? d.content.slice(0, 800) : (d.summary || "无内容")}\n--- 结束 ---`,
       )
-      .join("\n\n")}\n请遵循文档规范进行配置。`;
+      .join("\n\n")}
+`;
   }
 
   prompt += `
@@ -197,7 +206,7 @@ ${JSON.stringify(simplifiedResults, null, 2)}
   // 调用 LLM
   let response;
   try {
-    response = await model.invoke([new HumanMessage({ content: prompt })]);
+    response = await model.invoke([new HumanMessage({ content: prompt })], { callbacks: [] }); // 🚫 禁止回调，防止流式传输生成的 JSON 代码
   } catch (e) {
     console.error("FATAL: Executor Node LLM invoke failed", e);
     return {
@@ -239,16 +248,10 @@ ${JSON.stringify(simplifiedResults, null, 2)}
       type: "page",
       title: "页面生成中...",
       body: allResults.map((comp, idx) => ({
-        type: "wrapper",
+        type: "container",
         className:
-          "border-2 border-dashed border-blue-200 p-2 mb-2 rounded relative",
-        body: [
-          {
-            type: "tpl",
-            tpl: `<div class="absolute top-0 right-0 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-bl">Part ${idx + 1}</div>`,
-          },
-          comp,
-        ],
+          "mb-4 animate-fade-in", // 使用更干净的容器，去除 intrusive 的边框
+        body: comp,
       })),
     };
   } catch (e) {

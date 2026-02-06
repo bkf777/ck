@@ -35,7 +35,7 @@ export async function composer_node(
   // 如果有任务结果，综合它们
   if (taskResults.length > 0) {
     // 构建提示词
-    let prompt = `你是 amis 配置综合专家。请将以下组件综合成一个完整的 amis JSON 配置。
+    let prompt = `你是 amis 配置综合专家。你的任务是将分离的组件整合成一个**布局完美、视觉统一**的最终页面。
 
 已生成的组件：
 ${JSON.stringify(taskResults, null, 2)}`;
@@ -48,20 +48,22 @@ ${JSON.stringify(processData.dataStructure, null, 2)}`;
     }
 
     prompt += `\n\n综合要求：
-1. **结构化组装**：将所有已生成的组件合理安排在页面 (type: "page") 的 \`body\` 中。
-2. **响应式布局**：根据组件特点，利用 Amis 的布局容器（如 grid, flex, container）或 CSS 类名，确保页面在不同屏幕尺寸下有良好的展示效果。
+1. **结构化组装**：
+   - 必须创建一个 \`type: "page"\` 的根节点。
+   - 使用 \`wrapper\` 或 \`container\` 对主要内容进行包裹，添加 \`className: "p-6 bg-gray-50 min-h-screen"\` 以提供背景。
+2. **视觉优化**：
+   - 如果组件之间没有间距，请在 body 数组中插入 \`{ type: "divider", className: "my-4" }\` 或使用 \`gap\` 类。
+   - 确保所有卡片 (\`card\`) 具有一致的 \`shadow-sm\` 和 \`rounded-lg\`。
+   - 顶部标题区域应该突出，使用 \`tpl\` 或 \`title\` 属性。
 3. **数据注入**：务必将【全局数据上下文】注入到根节点的 \`data\` 属性中。
-4. **禁止过度设计**：
-   - 保持组件原有的配置，**严禁** 擅自添加新的 API 接口或复杂的业务逻辑。
-   - 除非是为了布局美观（如添加 divider 或对齐），否则不要增加新的功能组件。
-5. **纯净输出**：只返回最终的 JSON 对象，不要有任何 Markdown 标记或解释文字。
+4. **纯净输出**：只返回最终的 JSON 对象，不要有任何 Markdown 标记或解释文字。
 
 请生成综合后的 amis JSON 配置：`;
 
     const response = await model.invoke([
       new SystemMessage({ content: "你是 amis 配置综合专家" }),
       new HumanMessage({ content: prompt }),
-    ]);
+    ], { callbacks: [] }); // 🚫 禁止回调，防止流式传输巨大的 JSON 字符串到聊天界面
 
     try {
       const content = getMessageContentText(response.content);

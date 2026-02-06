@@ -114,6 +114,7 @@ export async function validator_node(
         },
         config
     );
+
     // --------------------------------
 
     // 成功后推进任务索引
