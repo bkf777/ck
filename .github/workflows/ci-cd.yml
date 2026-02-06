@@ -586,6 +586,7 @@ jobs:
           WEB_IMAGE_NAME=${{ env.WEB_IMAGE_NAME }}
           AGENT_IMAGE_NAME=${{ env.AGENT_IMAGE_NAME }}
           IMAGE_TAG=${{ env.IMAGE_TAG }}
+          NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
           ENVEOF
 
           echo "✅ .env.production 文件已创建"
