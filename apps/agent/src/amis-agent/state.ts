@@ -1,4 +1,4 @@
-import { Annotation,MessagesAnnotation } from "@langchain/langgraph";
+import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
 
 import { Task, ExecutionEvent } from "./types.js";
 
@@ -14,7 +14,10 @@ export const AgentStateAnnotation = Annotation.Root({
   userRequirement: Annotation<string>,
 
   // 任务列表
-  tasks: Annotation<Task[]>,
+  tasks: Annotation<Task[]>({
+    reducer: (a, b) => b ?? a ?? [],
+    default: () => [],
+  }),
 
   // 当前执行的任务索引
   currentTaskIndex: Annotation<number>,
@@ -63,9 +66,6 @@ export const AgentStateAnnotation = Annotation.Root({
       type: string;
     };
   }>,
-
-  // A/B 测试分组 (A: 对照组-旧流程, B: 实验组-新流程)
-  abTestGroup: Annotation<"A" | "B">,
 
   // Schema 版本号，用于前端精确感知更新
   schemaVersion: Annotation<number>,

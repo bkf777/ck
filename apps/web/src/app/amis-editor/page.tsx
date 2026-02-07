@@ -1366,6 +1366,7 @@ export default function AmisAgentChat() {
   useCoAgentStateRender<AmisAgentState>({
     name: "AmisEditorPageAgent",
     render: ({ state }) => {
+      console.log("state", state);
       // 1. 处理无任务时的状态（错误 vs 正在分析）
       if (!state.tasks || state.tasks.length === 0) {
         if (state.error) {
@@ -1451,7 +1452,7 @@ export default function AmisAgentChat() {
           </div>
         );
       }
-      console.log(state.tasks);
+
       const completedCount = state.tasks.filter(
         (step) => step.status === "completed",
       ).length;
@@ -1500,11 +1501,19 @@ export default function AmisAgentChat() {
             <div className="space-y-3">
               {state.tasks.map((step, index) => {
                 const isCompleted = step.status === "completed";
-                
+
                 // Determine if this task is the current active one
-                const isProcessing = ["in_progress", "json_error"].includes(step.status);
-                const anyProcessing = state.tasks.some(s => ["in_progress", "json_error"].includes(s.status));
-                const isNextUp = !anyProcessing && step.status === "pending" && index === state.tasks.findIndex(s => s.status === "pending");
+                const isProcessing = ["in_progress", "json_error"].includes(
+                  step.status,
+                );
+                const anyProcessing = state.tasks.some((s) =>
+                  ["in_progress", "json_error"].includes(s.status),
+                );
+                const isNextUp =
+                  !anyProcessing &&
+                  step.status === "pending" &&
+                  index ===
+                    state.tasks.findIndex((s) => s.status === "pending");
 
                 const isCurrentPending = isProcessing || isNextUp;
 
@@ -1872,6 +1881,7 @@ function AmisEditorPage() {
     initialState: {
       schema: DEFAULT_SCHEMA,
       schemaVersion: 0,
+      tasks: [],
     },
   });
 

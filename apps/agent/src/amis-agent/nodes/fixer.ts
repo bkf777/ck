@@ -6,6 +6,8 @@ import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
 import { getMessageContentText, parseJsonFromMarkdown } from "../utils.js";
 
+import { setTimeout } from "timers/promises";
+
 /**
  * 2.3 JSON 修复节点 (Fixer Node)
  * 职责：当 JSON 解析失败时，根据错误信息重新生成
@@ -49,33 +51,43 @@ ${
 
 请输出修复后的 JSON：`;
 
-  const response = await model.invoke([
-    new SystemMessage({ content: "你是 JSON 修复专家" }),
-    new HumanMessage({ content: prompt }),
-  ], { callbacks: [] }); // 🚫 禁止回调
+  const response = await model.invoke(
+    [
+      new SystemMessage({ content: "你是 JSON 修复专家" }),
+      new HumanMessage({ content: prompt }),
+    ],
+    { callbacks: [] },
+  ); // 🚫 禁止回调
 
   const content = getMessageContentText(response.content);
+
+  const updatedTasks = [...tasks];
 
   // 尝试解析修复后的结果，以便 Validator 可以进行验证
   try {
     const fixedJson = parseJsonFromMarkdown(content);
-    tasks[currentIndex].result = fixedJson;
-    // 重置状态，避免 Validator 误判
-    tasks[currentIndex].status = 'in_progress';
+    updatedTasks[currentIndex] = {
+      ...updatedTasks[currentIndex],
+      result: fixedJson,
+      status: "in_progress",
+    };
   } catch (e) {
     console.warn("[Fixer] 解析修复结果失败:", e);
     // 解析失败，Validator 将会再次捕获并可能最终失败
   }
 
   // 更新任务的 rawResult，然后再次进入 validator
-  tasks[currentIndex].rawResult = content;
-  tasks[currentIndex].retryCount = (tasks[currentIndex].retryCount || 0) + 1;
+  updatedTasks[currentIndex] = {
+    ...updatedTasks[currentIndex],
+    rawResult: content,
+    retryCount: (updatedTasks[currentIndex].retryCount || 0) + 1,
+  };
 
   const event: ExecutionEvent = {
     type: "generation_progress",
     timestamp: new Date().toISOString(),
     taskId: task.id,
-    message: `尝试修复 JSON 错误 (重试次数: ${tasks[currentIndex].retryCount})`,
+    message: `尝试修复 JSON 错误 (重试次数: ${updatedTasks[currentIndex].retryCount})`,
   };
 
   // 限制日志长度
@@ -85,14 +97,17 @@ ${
   await dispatchCustomEvent(
     "manually_emit_state",
     {
-      tasks,
+      tasks: updatedTasks,
       executionLog: [...prunedLog, event],
     },
-    config
+    config,
   );
 
+  // 🛡️ 强制等待 500ms
+  await setTimeout(500);
+
   return {
-    tasks,
+    tasks: updatedTasks,
     schemaVersion: state.schemaVersion || 0, // 保持版本号
     executionLog: [...prunedLog, event],
   };

@@ -104,6 +104,7 @@ export async function docs_associate_node(
     };
   } catch (e) {
     return {
+      tasks, // 👈 必须包含，否则前端会丢失任务列表
       executionLog: [...(state.executionLog || []), {
         type: "error",
         timestamp: new Date().toISOString(),

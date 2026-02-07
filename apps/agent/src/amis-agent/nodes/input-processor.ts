@@ -137,6 +137,11 @@ ${rawInput}
     userRequirement: result.requirement,
   };
 
+  // 仅在 tasks 未定义时初始化，避免覆盖已有任务
+  if (!state.tasks) {
+    update.tasks = [];
+  }
+
   if (result.isDataPresent && result.dataContent) {
     update.processData = {
       rawData:
