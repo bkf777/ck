@@ -1369,6 +1369,11 @@ export default function AmisAgentChat() {
       console.log("state", state);
       // 1. 处理无任务时的状态（错误 vs 正在分析）
       if (!state.tasks || state.tasks.length === 0) {
+        // 如果没有用户需求且没有错误，说明尚未开始任务，不渲染任何内容
+        if (!state.userRequirement && !state.error && !state.processData) {
+          return null;
+        }
+
         if (state.error) {
           return (
             <div className="flex">

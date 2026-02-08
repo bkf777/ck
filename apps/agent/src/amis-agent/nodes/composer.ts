@@ -1,6 +1,10 @@
 import { RunnableConfig } from "@langchain/core/runnables";
 import { createChatModel } from "../../utils/model-factory.js";
-import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
+import {
+  HumanMessage,
+  SystemMessage,
+  AIMessage,
+} from "@langchain/core/messages";
 import { AmisAgentState } from "../state.js";
 import { ExecutionEvent } from "../types.js";
 import { parseJsonFromMarkdown, getMessageContentText } from "../utils.js";
@@ -20,7 +24,7 @@ export async function composer_node(
   const taskResults = tasks
     .filter((t) => t.status === "completed" && t.result)
     .map((t) => parseJsonFromMarkdown(t.result));
-  
+
   // 获取处理后的数据
   const processData = state.processData;
 
@@ -35,9 +39,14 @@ export async function composer_node(
   // 如果有任务结果，综合它们
   if (taskResults.length > 0) {
     // 构建提示词
-    let prompt = `你是 amis 配置综合专家。你的任务是将分离的组件整合成一个**布局完美、视觉统一**的最终页面。
+    let prompt = `你的**首要目标**是将提供的组件拼装成一个**布局合理**的 amis 页面。
 
-已生成的组件：
+**核心原则（必须严格遵守）：**
+1. **绝对禁止修改组件内部配置**：将输入的组件视为**不可变**的黑盒。不要尝试优化、重写或"修复"组件内部的任何属性（如 \`api\`, \`columns\`, \`body\` 等）。
+2. **仅做布局组装**：你的工作只限于在组件外层包裹布局容器（如 \`wrapper\`, \`grid\`, \`hbox\` 等）或添加分隔符。
+3. **保持原样**：如果输入的组件已经是完整的配置，直接返回即可，不要画蛇添足。
+
+已生成的组件（不可变块）：
 ${JSON.stringify(taskResults, null, 2)}`;
 
     // 如果有数据上下文，注入到提示词
@@ -47,23 +56,28 @@ ${JSON.stringify(taskResults, null, 2)}`;
 ${JSON.stringify(processData.dataStructure, null, 2)}`;
     }
 
-    prompt += `\n\n综合要求：
-1. **结构化组装**：
+    prompt += `\n\n组装要求：
+1. **页面结构**：
    - 必须创建一个 \`type: "page"\` 的根节点。
-   - 使用 \`wrapper\` 或 \`container\` 对主要内容进行包裹，添加 \`className: "p-6 bg-gray-50 min-h-screen"\` 以提供背景。
-2. **视觉优化**：
-   - 如果组件之间没有间距，请在 body 数组中插入 \`{ type: "divider", className: "my-4" }\` 或使用 \`gap\` 类。
-   - 确保所有卡片 (\`card\`) 具有一致的 \`shadow-sm\` 和 \`rounded-lg\`。
-   - 顶部标题区域应该突出，使用 \`tpl\` 或 \`title\` 属性。
+   - 使用 \`wrapper\` 或 \`container\` 对主要内容进行包裹，可以添加 \`className: "p-6 bg-gray-50 min-h-screen"\` 以提供背景。
+2. **布局优化**：
+   - 如果组件之间需要间距，请在组件之间插入 \`{ type: "divider", className: "my-4" }\` 或使用 \`gap\` 类。
+   - 不要修改组件本身的 \`className\`，只在容器层级调整布局。
 3. **数据注入**：务必将【全局数据上下文】注入到根节点的 \`data\` 属性中。
 4. **纯净输出**：只返回最终的 JSON 对象，不要有任何 Markdown 标记或解释文字。
 
-请生成综合后的 amis JSON 配置：`;
+请生成组装后的 amis JSON 配置：`;
 
-    const response = await model.invoke([
-      new SystemMessage({ content: "你是 amis 配置综合专家" }),
-      new HumanMessage({ content: prompt }),
-    ], { callbacks: [] }); // 🚫 禁止回调，防止流式传输巨大的 JSON 字符串到聊天界面
+    const response = await model.invoke(
+      [
+        new SystemMessage({
+          content:
+            "你是 amis 布局组装工程师。你只负责将组件拼装成页面，绝不修改组件内部逻辑。",
+        }),
+        new HumanMessage({ content: prompt }),
+      ],
+      { callbacks: [] },
+    ); // 🚫 禁止回调，防止流式传输巨大的 JSON 字符串到聊天界面
 
     try {
       const content = getMessageContentText(response.content);
