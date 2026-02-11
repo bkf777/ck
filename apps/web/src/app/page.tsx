@@ -176,7 +176,7 @@ export default function AmisEditorPage() {
                   type: "plain",
                   text: "Why Choose AI Low-Code?",
                   className:
-                    "text-3xl font-bold text-slate-800 dark:text-slate-100 mb-4 block",
+                    "text-3xl font-bold text-black dark:text-slate-100 mb-4 block",
                 },
                 {
                   type: "plain",
