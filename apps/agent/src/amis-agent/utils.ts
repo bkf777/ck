@@ -156,3 +156,33 @@ export function getMessageContentText(content: any): string {
   }
   return "";
 }
+
+/**
+ * 生成任务进度渲染配置
+ */
+export function renderTaskProgress(tasks: Task[], currentIndex: number) {
+  return {
+    type: "card",
+    className: "mb-4 border-none shadow-sm bg-blue-50/30",
+    body: [
+      {
+        type: "steps",
+        className: "p-2",
+        steps: tasks.map((t, idx) => {
+          let status: "wait" | "process" | "finish" | "error" = "wait";
+          if (t.status === "completed") status = "finish";
+          else if (t.status === "in_progress") status = "process";
+          else if (t.status === "failed" || t.status === "json_error") status = "error";
+          else if (idx === currentIndex) status = "process";
+
+          return {
+            title: t.title || `任务 ${idx + 1}`,
+            subTitle: t.status === "completed" ? "已完成" : (t.status === "in_progress" ? "正在执行..." : "待处理"),
+            description: t.description.slice(0, 40) + "...",
+            status: status
+          };
+        })
+      }
+    ]
+  };
+}

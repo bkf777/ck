@@ -60,6 +60,7 @@ export async function context_node(
   };
 
   return {
+    tasks,
     contextDocuments: docs,
     executionLog: [...(state.executionLog || []), event],
   };

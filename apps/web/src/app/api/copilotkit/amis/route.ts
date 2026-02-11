@@ -38,6 +38,8 @@ const runtime = new CopilotRuntime({
       assistantConfig: {
         configurable: {},
       },
+      // @ts-ignore
+      streamMode: "values",
     }),
   },
 });
